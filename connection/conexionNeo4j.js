@@ -7,14 +7,14 @@ const contrasenaDB = process.env.DATABASE_PASSWORD
 
 const driver = neo4j.driver(urlDB, neo4j.auth.basic(usuarioDB, contrasenaDB), {disableLosslessIntegers: true});
 
-async function ejecutarCypher(sentencia) {
+async function ejecutarCypher(sentencia, params = {}) {
   const session = driver.session();
   try {
-    const resultado = await session.run(sentencia);
+    const resultado = await session.run(sentencia, params);
     return resultado;
   } catch (error) {
     debug(error)
-    return error
+    throw error
   } finally {
     session.close();
   }
