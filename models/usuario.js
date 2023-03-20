@@ -45,7 +45,7 @@ const crear = async (usuario) => {
     catch (error) {
         if (error instanceof Neo4jError.Neo4jError && error.toString().includes('already exists with label')) {
             return json = {
-                error: 'Ya existe un usuario con el email especificado.',
+                error: 'Ya existe un usuario con el email especificado: ' + usuario.email.toString(),
                 codigo: 400
             }
         }
@@ -81,7 +81,7 @@ const actualizar = async (usuarioID, usuario) => {
     catch (error) {
         if (error instanceof Neo4jError.Neo4jError && error.toString().includes('already exists with label')) {
             return json = {
-                error: 'Ya existe un usuario con el email especificado.',
+                error: 'Ya existe un usuario con el email especificado: ' + usuario.email.toString(),
                 codigo: 400
             }
         }
