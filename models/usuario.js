@@ -26,7 +26,7 @@ const crear = async (usuario) => {
     const validacion = await usuarioSchema.validarUsuario(usuario)
     if (!validacion.valido) { 
         return json = {
-            error: validacion.error,
+            error: validacion.error.details[0].message.toString(),
             codigo: 400
         }
     }
@@ -54,7 +54,7 @@ const actualizar = async (usuarioID, usuario) => {
     const validacion = await usuarioSchema.validarUsuario(usuario)
     if (!validacion.valido) { 
         return json = {
-            error: validacion.error,
+            error: validacion.error.details[0].message.toString(),
             codigo: 400
         }
     }

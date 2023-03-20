@@ -15,7 +15,7 @@ const agregarRestriccionAlimento = async (usuarioID, restriccionAlimento) => {
     const validacion = await restriccionAlimentoSchema.validarRestriccionAlimento(restriccionAlimento)
     if (!validacion.valido) { 
         return json = {
-            error: validacion.error,
+            error: validacion.error.details[0].message.toString(),
             codigo: 400
         }
     }
@@ -41,7 +41,7 @@ const quitarRestriccionAlimento = async (usuarioID, restriccionAlimento) => {
     const validacion = await restriccionAlimentoSchema.validarRestriccionAlimento(restriccionAlimento)
     if (!validacion.valido) { 
         return json = {
-            error: validacion.error,
+            error: validacion.error.details[0].message.toString(),
             codigo: 400
         }
     }
