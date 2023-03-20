@@ -4,14 +4,15 @@ const usuarioSchema = require('../models/schemas/usuario');
 const { v4: uuidv4 } = require('uuid');
 
 const encontrarTodos = async () => {
-    let sentencia = `MATCH (u:Usuario) RETURN u`
+    let sentencia = 'MATCH (u:Usuario) RETURN u'
     const resultado = await conexionNeo4j.ejecutarCypher(sentencia)
     return resultado.records.map(record => record.get('u').properties)
 }
 
 const encontrarPorId = async (usuarioID) => {
-    let sentencia = `MATCH (u:Usuario {usuarioID : '${usuarioID}'}) RETURN u LIMIT 1`
-    const resultado = await conexionNeo4j.ejecutarCypher(sentencia)
+    let sentencia = 'MATCH (u:Usuario {usuarioID : $usuarioID}) RETURN u LIMIT 1'
+    let params = {usuarioID: usuarioID}
+    const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
     if (resultado.records[0]) {
         return resultado.records[0].get('u').properties
     } else {
@@ -31,12 +32,14 @@ const crear = async (usuario) => {
         }
     }
     const usuarioID = uuidv4()
-    let sentencia = `CREATE (u:Usuario {usuarioID : '${usuarioID}', nombre: '${usuario.nombre}',` +
-                    `apellido: '${usuario.apellido}', email: '${usuario.email}', sexo: '${usuario.sexo}',` +
-                    `anio_nacimiento: toInteger(${usuario.anio_nacimiento}), peso: toInteger(${usuario.peso}),` +
-                    `estatura: toInteger(${usuario.estatura}), actividad_fisica: '${usuario.actividad_fisica}'}) RETURN u`
-   try {
-        const resultado = await conexionNeo4j.ejecutarCypher(sentencia) 
+    let sentencia = 'CREATE (u:Usuario {usuarioID : $usuarioID, nombre: $nombre,' +
+                    'apellido: $apellido, email: $email, sexo: $sexo,' +
+                    'anio_nacimiento: toInteger($anio_nacimiento), peso: toInteger($peso),' +
+                    'estatura: toInteger($estatura), actividad_fisica: $actividad_fisica}) RETURN u'
+    let params = usuario
+    params.usuarioID = usuarioID
+    try {
+        const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params) 
         return resultado.records[0].get('u').properties
     }
     catch (error) {
@@ -58,12 +61,14 @@ const actualizar = async (usuarioID, usuario) => {
             codigo: 400
         }
     }
-    let sentencia = `MATCH (u:Usuario {usuarioID : '${usuarioID}'}) SET u.nombre = '${usuario.nombre}',` +
-                    `u.apellido = '${usuario.apellido}', u.email = '${usuario.email}', u.sexo = '${usuario.sexo}',` +
-                    `u.anio_nacimiento = toInteger(${usuario.anio_nacimiento}), u.peso = toInteger(${usuario.peso}),` +
-                    `u.estatura = toInteger(${usuario.estatura}), u.actividad_fisica = '${usuario.actividad_fisica}' RETURN u`
+    let sentencia = 'MATCH (u:Usuario {usuarioID : $usuarioID}) SET u.nombre = $nombre,' +
+                    'u.apellido = $apellido, u.email = $email, u.sexo = $sexo,' +
+                    'u.anio_nacimiento = toInteger($anio_nacimiento), u.peso = toInteger($peso),' +
+                    'u.estatura = toInteger($estatura), u.actividad_fisica = $actividad_fisica RETURN u'
+    let params = usuario
+    params.usuarioID = usuarioID
     try {
-        const resultado = await conexionNeo4j.ejecutarCypher(sentencia) 
+        const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params) 
         if (resultado.records[0]) {
             return resultado.records[0].get('u').properties
         } else {
@@ -84,8 +89,9 @@ const actualizar = async (usuarioID, usuario) => {
 }
 
 const eliminar = async (usuarioID) => {
-    let sentencia = `MATCH (u:Usuario {usuarioID : '${usuarioID}'}) DETACH DELETE u`
-    const resultado = await conexionNeo4j.ejecutarCypher(sentencia)
+    let sentencia = 'MATCH (u:Usuario {usuarioID : $usuarioID}) DETACH DELETE u'
+    let params = {usuarioID: usuarioID}
+    const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
     if (resultado.summary.counters._stats.nodesDeleted) {
         return 'Usuario eliminado con éxito.'
     } else {
