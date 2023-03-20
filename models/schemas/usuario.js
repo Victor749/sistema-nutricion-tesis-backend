@@ -2,11 +2,11 @@ const Joi = require('joi');
 
 const usuarioSchema = Joi.object({
     nombre: Joi.string()
-        .alphanum()
+        .regex(/^\p{L}+$/u) // Solo letras del alfabeto de cualquier idioma
         .required(),
 
     apellido: Joi.string()
-        .alphanum()
+        .regex(/^\p{L}+$/u) // Solo letras del alfabeto de cualquier idioma
         .required(),
 
     email: Joi.string()
