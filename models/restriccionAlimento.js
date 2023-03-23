@@ -2,7 +2,7 @@ const conexionNeo4j = require('../connection/conexionNeo4j');
 const restriccionAlimentoSchema = require('../models/schemas/restriccionAlimento');
 
 const verRestriccionesAlimento = async (usuarioID) => {
-    let sentencia = 'MATCH (u:Usuario {usuarioID: $usuarioID})-[r:RESTRINGE]-(a:Alimento) RETURN r, a'
+    let sentencia = 'MATCH (u:Usuario {usuarioID: $usuarioID})-[r:RESTRINGE]->(a:Alimento) RETURN r, a'
     let params = {usuarioID: usuarioID}
     const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
     return resultado.records.map(record => json = {
