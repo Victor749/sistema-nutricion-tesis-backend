@@ -23,6 +23,20 @@ const encontrarPorId = async (usuarioID) => {
     }
 }
 
+const encontrarPorEmail = async (email) => {
+    let sentencia = 'MATCH (u:Usuario {email : $email}) RETURN u LIMIT 1'
+    let params = {email: email}
+    const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
+    if (resultado.records[0]) {
+        return resultado.records[0].get('u').properties
+    } else {
+        return json = {
+            error: 'Usuario no encontrado.',
+            codigo: 404
+        }
+    }
+}
+
 const crear = async (usuario) => {
     const validacion = await usuarioSchema.validarUsuario(usuario)
     if (!validacion.valido) { 
@@ -105,6 +119,7 @@ const eliminar = async (usuarioID) => {
 module.exports = {
     encontrarTodos,
     encontrarPorId,
+    encontrarPorEmail,
     crear,
     actualizar,
     eliminar

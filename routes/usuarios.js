@@ -29,6 +29,21 @@ router.get('/:usuarioID', async function(req, res) {
   }
 });
 
+/* GET usuario por email. */
+router.get('/email/:email', async function(req, res) {
+  try {
+    const resultado = await Usuario.encontrarPorEmail(req.params.email)
+    if (resultado.codigo === 404)  {
+      res.status(404).send(resultado.error)
+    } else {
+      res.status(200).json(resultado)
+    }
+  } catch (error) {
+    debug(error)
+    res.status(500).send('Error en el servidor.')
+  }
+});
+
 /* POST nuevo usuario. */
 router.post('/', async function (req, res) {
   try {
