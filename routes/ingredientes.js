@@ -14,6 +14,21 @@ router.get('/', async function(req, res) {
   }
 });
 
+/* GET buscar ingredientes cuya descripcion inicie por una cadena determinada. */
+router.get('/buscarIniciaPor/', async function(req, res) {
+  try {
+    const resultado = await Ingrediente.buscarIniciaPor(req.query.cadenaBusqueda, req.query.limite)
+    if (resultado.codigo === 400)  {
+      res.status(400).send(resultado.error)
+    } else {
+      res.status(200).json(resultado)
+    }
+  } catch (error) {
+    debug(error)
+    res.status(500).send('Error en el servidor.')
+  }
+});
+
 /* GET ingrediente por ID. */
 router.get('/:ingredienteID', async function(req, res) {
   try {

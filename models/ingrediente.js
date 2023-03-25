@@ -1,4 +1,5 @@
 const conexionNeo4j = require('../connection/conexionNeo4j');
+const busquedaSchema = require('../models/schemas/busqueda');
 
 const encontrarTodos = async () => {
     let sentencia = 'MATCH (i:Ingrediente) RETURN i'
@@ -20,7 +21,27 @@ const encontrarPorId = async (ingredienteID) => {
     }
 }
 
+const buscarIniciaPor = async (cadenaBusqueda, limite = 5) => {
+    let params = {
+        cadenaBusqueda: cadenaBusqueda,
+        limite: limite
+    }
+    console.log(params)
+    const validacion = await busquedaSchema.validarBusqueda(params)
+    if (!validacion.valido) { 
+        return json = {
+            error: validacion.error.details[0].message.toString(),
+            codigo: 400
+        }
+    }
+    let sentencia = 'MATCH (i:Ingrediente) WHERE toUpper(i.descripcion) STARTS WITH toUpper($cadenaBusqueda)' +
+                    'RETURN i ORDER BY i.descripcion LIMIT toInteger($limite)'
+    const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
+    return resultado.records.map(record => record.get('i').properties)
+}
+
 module.exports = {
     encontrarTodos,
-    encontrarPorId
+    encontrarPorId,
+    buscarIniciaPor
 };
