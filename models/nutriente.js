@@ -7,11 +7,14 @@ const encontrarTodos = async () => {
 }
 
 const encontrarPorId = async (nutrienteID) => {
-    let sentencia = 'MATCH (n:Nutriente {nutrienteID : toInteger($nutrienteID)}) RETURN n LIMIT 1'
+    let sentencia = 'MATCH (n:Nutriente {nutrienteID : toInteger($nutrienteID)})' +
+                    'OPTIONAL MATCH (n)-[:SE_MIDE_POR]->(u:Unidad) RETURN n, u LIMIT 1'
     let params = {nutrienteID: nutrienteID}
     const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
     if (resultado.records[0]) {
-        return resultado.records[0].get('n').properties
+        let nutriente = resultado.records[0].get('n').properties
+        nutriente.unidad = resultado.records[0].get('u') ? resultado.records[0].get('u').properties : {}
+        return nutriente
     } else {
         return json = {
             error: 'Nutriente no encontrado.',

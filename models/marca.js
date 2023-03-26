@@ -7,11 +7,14 @@ const encontrarTodos = async () => {
 }
 
 const encontrarPorId = async (marcaID) => {
-    let sentencia = 'MATCH (m:Marca {marcaID : toInteger($marcaID)}) RETURN m LIMIT 1'
+    let sentencia = 'MATCH (m:Marca {marcaID : toInteger($marcaID)})' +
+                    'OPTIONAL MATCH (m)-[:PERTENECE]->(e:Empresa) RETURN m, e LIMIT 1'
     let params = {marcaID: marcaID}
     const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
     if (resultado.records[0]) {
-        return resultado.records[0].get('m').properties
+        let marca = resultado.records[0].get('m').properties
+        marca.empresa = resultado.records[0].get('e') ? resultado.records[0].get('e').properties : {}
+        return marca
     } else {
         return json = {
             error: 'Marca no encontrada.',
