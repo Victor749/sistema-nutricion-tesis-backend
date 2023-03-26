@@ -21,12 +21,12 @@ const encontrarPorId = async (ingredienteID) => {
     }
 }
 
-const buscarIniciaPor = async (cadenaBusqueda, limite = 5) => {
+const buscar = async (cadenaBusqueda, limite = 10, pagina = 1) => {
     let params = {
         cadenaBusqueda: cadenaBusqueda,
-        limite: limite
+        limite: limite,
+        pagina: pagina
     }
-    console.log(params)
     const validacion = await busquedaSchema.validarBusqueda(params)
     if (!validacion.valido) { 
         return json = {
@@ -34,8 +34,14 @@ const buscarIniciaPor = async (cadenaBusqueda, limite = 5) => {
             codigo: 400
         }
     }
-    let sentencia = 'MATCH (i:Ingrediente) WHERE toUpper(i.descripcion) STARTS WITH toUpper($cadenaBusqueda)' +
-                    'RETURN i ORDER BY i.descripcion LIMIT toInteger($limite)'
+    // Regex que busca la cadena de busqueda como una cadena aislada (palabra o frase) dentro de un nombre o descripcion
+    params.cadenaBusquedaRegexExp = '(?i).*\\b' + cadenaBusqueda + '\\b.*'
+    // La busqueda consiste en buscar nombres o descripciones que cumplan el regex anterior
+    // Los resultados se ordenan en funcion de la posicion de aparicion de la cadena de busqueda y luego en orden alfabetico
+    // Se usa SKIP y LIMIT para paginacion (el limite da el tamanio de pagina)
+    let sentencia = 'MATCH (i:Ingrediente) WHERE i.descripcion =~ $cadenaBusquedaRegexExp RETURN i ' +
+                    'ORDER BY apoc.text.indexOf(TOUPPER(i.descripcion), TOUPPER($cadenaBusqueda)), i.descripcion ' +
+                    'SKIP toInteger($pagina) * toInteger($limite) - toInteger($limite) LIMIT toInteger($limite)'
     const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
     return resultado.records.map(record => record.get('i').properties)
 }
@@ -43,5 +49,5 @@ const buscarIniciaPor = async (cadenaBusqueda, limite = 5) => {
 module.exports = {
     encontrarTodos,
     encontrarPorId,
-    buscarIniciaPor
+    buscar
 };

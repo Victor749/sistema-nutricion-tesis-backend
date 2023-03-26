@@ -8,6 +8,11 @@ const busquedaSchema = Joi.object({
         .integer()
         .positive()
         .required(),
+
+    pagina: Joi.number()
+        .integer()
+        .positive()
+        .required(),
 })
 
 const validarBusqueda = async (busqueda) => {

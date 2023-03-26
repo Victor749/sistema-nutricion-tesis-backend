@@ -14,10 +14,10 @@ router.get('/', async function(req, res) {
   }
 });
 
-/* GET buscar ingredientes cuya descripcion inicie por una cadena determinada. */
-router.get('/buscarIniciaPor/', async function(req, res) {
+/* GET buscar ingredientes por descripcion. */
+router.get('/buscar/', async function(req, res) {
   try {
-    const resultado = await Ingrediente.buscarIniciaPor(req.query.cadenaBusqueda, req.query.limite)
+    const resultado = await Ingrediente.buscar(req.query.cadenaBusqueda, req.query.limite, req.query.pagina)
     if (resultado.codigo === 400)  {
       res.status(400).send(resultado.error)
     } else {
