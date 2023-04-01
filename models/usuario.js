@@ -62,6 +62,8 @@ const crear = async (usuario) => {
                 error: 'Ya existe un usuario con el email especificado: ' + usuario.email.toString(),
                 codigo: 400
             }
+        } else {
+            throw error
         }
     }
     
@@ -98,6 +100,8 @@ const actualizar = async (usuarioID, usuario) => {
                 error: 'Ya existe un usuario con el email especificado: ' + usuario.email.toString(),
                 codigo: 400
             }
+        } else {
+            throw error
         }
     }
 }
