@@ -2,7 +2,8 @@ const conexionNeo4j = require('../connection/conexionNeo4j');
 const restriccionIngredienteSchema = require('../models/schemas/restriccionIngrediente');
 
 const verRestriccionesIngrediente = async (usuarioID) => {
-    let sentencia = 'MATCH (u:Usuario {usuarioID: $usuarioID})-[r:RESTRINGE]->(i:Ingrediente) RETURN r, i'
+    let sentencia = 'MATCH (u:Usuario {usuarioID: $usuarioID})-[r:RESTRINGE]->(i:Ingrediente) ' +
+                    'RETURN r, i ORDER BY i.descripcion'
     let params = {usuarioID: usuarioID}
     const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
     return resultado.records.map(record => json = {
@@ -22,15 +23,24 @@ const agregarRestriccionIngrediente = async (usuarioID, restriccionIngrediente) 
     }
     let sentencia = 'MATCH (u:Usuario {usuarioID: $usuarioID}),' +
                     '(i:Ingrediente {ingredienteID: toInteger($ingredienteID)})' +
-                    'MERGE (u)-[r:RESTRINGE {tipo: $tipo}]->(i) RETURN r, i'
+                    'MERGE (u)-[r:RESTRINGE]->(i) ' +
+                    'ON CREATE SET r.tipo = $tipo ' +
+                    'RETURN r, i'
     let params = restriccionIngrediente
     params.usuarioID = usuarioID
     const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
     if (resultado.records[0]) {
-        return json = {
-            ingredienteID: resultado.records[0].get('i').properties.ingredienteID,
-            descripcion: resultado.records[0].get('i').properties.descripcion,
-            tipo: resultado.records[0].get('r').properties.tipo
+        if (resultado.summary.counters._stats.relationshipsCreated) {
+            return json = {
+                ingredienteID: resultado.records[0].get('i').properties.ingredienteID,
+                descripcion: resultado.records[0].get('i').properties.descripcion,
+                tipo: resultado.records[0].get('r').properties.tipo
+            }
+        } else {
+            return json = {
+                error: 'Restricción ya existente para el usuario e ingrediente especificados.',
+                codigo: 400
+            }
         }
     } else {
         return json = {
@@ -40,19 +50,13 @@ const agregarRestriccionIngrediente = async (usuarioID, restriccionIngrediente) 
     }
 }
 
-const quitarRestriccionIngrediente = async (usuarioID, restriccionIngrediente) => {
-    const validacion = await restriccionIngredienteSchema.validarRestriccionIngrediente(restriccionIngrediente)
-    if (!validacion.valido) { 
-        return json = {
-            error: validacion.error.details[0].message.toString(),
-            codigo: 400
-        }
-    }
-    let sentencia = 'MATCH (u:Usuario {usuarioID: $usuarioID})-[r:RESTRINGE {tipo: $tipo}]->' +
+const quitarRestriccionIngrediente = async (usuarioID, ingredienteID) => {
+    let sentencia = 'MATCH (u:Usuario {usuarioID: $usuarioID})-[r:RESTRINGE]->' +
                     '(i:Ingrediente {ingredienteID: toInteger($ingredienteID)})' +
                     'DELETE r'
-    let params = restriccionIngrediente
+    let params = {}
     params.usuarioID = usuarioID
+    params.ingredienteID = ingredienteID
     const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
     if (resultado.summary.counters._stats.relationshipsDeleted) {
         return 'Restricción quitada con éxito.'
@@ -64,8 +68,31 @@ const quitarRestriccionIngrediente = async (usuarioID, restriccionIngrediente) =
     }
 }
 
+const verificarRestriccionIngrediente = async (usuarioID, ingredienteID) => {
+    let sentencia = 'MATCH (u:Usuario {usuarioID: $usuarioID})-[r:RESTRINGE]->' +
+                    '(i:Ingrediente {ingredienteID: toInteger($ingredienteID)})' +
+                    'RETURN r, i'
+    let params = {}
+    params.usuarioID = usuarioID
+    params.ingredienteID = ingredienteID
+    const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
+    if (resultado.records[0]) {
+        return json = {
+            ingredienteID: resultado.records[0].get('i').properties.ingredienteID,
+            descripcion: resultado.records[0].get('i').properties.descripcion,
+            tipo: resultado.records[0].get('r').properties.tipo
+        }
+    } else {
+        return json = {
+            error: 'Restricción, usuario y/o ingrediente no encontrado(s).',
+            codigo: 404
+        }
+    }
+}
+
 module.exports = {
     verRestriccionesIngrediente,
     agregarRestriccionIngrediente,
-    quitarRestriccionIngrediente
+    quitarRestriccionIngrediente,
+    verificarRestriccionIngrediente
 };

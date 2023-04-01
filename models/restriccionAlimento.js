@@ -2,7 +2,8 @@ const conexionNeo4j = require('../connection/conexionNeo4j');
 const restriccionAlimentoSchema = require('../models/schemas/restriccionAlimento');
 
 const verRestriccionesAlimento = async (usuarioID) => {
-    let sentencia = 'MATCH (u:Usuario {usuarioID: $usuarioID})-[r:RESTRINGE]->(a:Alimento) RETURN r, a'
+    let sentencia = 'MATCH (u:Usuario {usuarioID: $usuarioID})-[r:RESTRINGE]->(a:Alimento) ' +
+                    'RETURN r, a ORDER BY a.nombre'
     let params = {usuarioID: usuarioID}
     const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
     return resultado.records.map(record => json = {
@@ -22,15 +23,24 @@ const agregarRestriccionAlimento = async (usuarioID, restriccionAlimento) => {
     }
     let sentencia = 'MATCH (u:Usuario {usuarioID: $usuarioID}),' +
                     '(a:Alimento {alimentoID: toInteger($alimentoID)})' +
-                    'MERGE (u)-[r:RESTRINGE {tipo: $tipo}]->(a) RETURN r, a'
+                    'MERGE (u)-[r:RESTRINGE]->(a) ' +
+                    'ON CREATE SET r.tipo = $tipo ' +
+                    'RETURN r, a'
     let params = restriccionAlimento
     params.usuarioID = usuarioID
     const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
     if (resultado.records[0]) {
-        return json = {
-            alimentoID: resultado.records[0].get('a').properties.alimentoID,
-            nombre: resultado.records[0].get('a').properties.nombre,
-            tipo: resultado.records[0].get('r').properties.tipo
+        if (resultado.summary.counters._stats.relationshipsCreated) {
+            return json = {
+                alimentoID: resultado.records[0].get('a').properties.alimentoID,
+                nombre: resultado.records[0].get('a').properties.nombre,
+                tipo: resultado.records[0].get('r').properties.tipo
+            }
+        } else {
+            return json = {
+                error: 'Restricción ya existente para el usuario y alimento especificados.',
+                codigo: 400
+            }
         }
     } else {
         return json = {
@@ -40,19 +50,13 @@ const agregarRestriccionAlimento = async (usuarioID, restriccionAlimento) => {
     }
 }
 
-const quitarRestriccionAlimento = async (usuarioID, restriccionAlimento) => {
-    const validacion = await restriccionAlimentoSchema.validarRestriccionAlimento(restriccionAlimento)
-    if (!validacion.valido) { 
-        return json = {
-            error: validacion.error.details[0].message.toString(),
-            codigo: 400
-        }
-    }
-    let sentencia = 'MATCH (u:Usuario {usuarioID: $usuarioID})-[r:RESTRINGE {tipo: $tipo}]->' +
+const quitarRestriccionAlimento = async (usuarioID, alimentoID) => {
+    let sentencia = 'MATCH (u:Usuario {usuarioID: $usuarioID})-[r:RESTRINGE]->' +
                     '(a:Alimento {alimentoID: toInteger($alimentoID)})' +
                     'DELETE r'
-    let params = restriccionAlimento
+    let params = {}
     params.usuarioID = usuarioID
+    params.alimentoID = alimentoID
     const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
     if (resultado.summary.counters._stats.relationshipsDeleted) {
         return 'Restricción quitada con éxito.'
@@ -64,8 +68,31 @@ const quitarRestriccionAlimento = async (usuarioID, restriccionAlimento) => {
     }
 }
 
+const verificarRestriccionAlimento = async (usuarioID, alimentoID) => {
+    let sentencia = 'MATCH (u:Usuario {usuarioID: $usuarioID})-[r:RESTRINGE]->' +
+                    '(a:Alimento {alimentoID: toInteger($alimentoID)})' +
+                    'RETURN r, a'
+    let params = {}
+    params.usuarioID = usuarioID
+    params.alimentoID = alimentoID
+    const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
+    if (resultado.records[0]) {
+        return json = {
+            alimentoID: resultado.records[0].get('a').properties.alimentoID,
+            nombre: resultado.records[0].get('a').properties.nombre,
+            tipo: resultado.records[0].get('r').properties.tipo
+        }
+    } else {
+        return json = {
+            error: 'Restricción, usuario y/o alimento no encontrado(s).',
+            codigo: 404
+        }
+    }
+}
+
 module.exports = {
     verRestriccionesAlimento,
     agregarRestriccionAlimento, 
-    quitarRestriccionAlimento
+    quitarRestriccionAlimento,
+    verificarRestriccionAlimento
 };
