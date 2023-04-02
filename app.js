@@ -14,6 +14,7 @@ var marcasRouter = require('./routes/marcas');
 var nutrientesRouter = require('./routes/nutrientes');
 var unidadesRouter = require('./routes/unidades');
 var alimentosRouter = require('./routes/alimentos');
+var sustitucionesRouter = require('./routes/sustituciones');
 
 var app = express();
 
@@ -37,6 +38,7 @@ app.use('/marcas', marcasRouter);
 app.use('/nutrientes', nutrientesRouter);
 app.use('/unidades', unidadesRouter);
 app.use('/alimentos', alimentosRouter);
+app.use('/sustituciones', sustitucionesRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

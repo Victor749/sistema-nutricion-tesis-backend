@@ -20,4 +20,16 @@ async function ejecutarCypher(sentencia, params = {}) {
   }
 }
 
-module.exports = { ejecutarCypher };
+async function transaccionCypher() {
+  const session = driver.session()
+  const txc = session.beginTransaction()
+  return {
+    session: session,
+    txc: txc
+  }
+}
+
+module.exports = { 
+  ejecutarCypher,
+  transaccionCypher
+};
