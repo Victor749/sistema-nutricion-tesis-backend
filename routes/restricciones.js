@@ -16,9 +16,9 @@ router.get('/restriccionesAlimento/usuario/:usuarioID', async function(req, res)
 });
   
 /* POST agregar restriccion alimenticia (alimento). */
-router.post('/restriccionAlimento/usuario/:usuarioID', async function (req, res) {
+router.post('/restriccionAlimento/usuario/:usuarioID/alimento/:alimentoID', async function (req, res) {
     try {
-        const resultado = await RestriccionAlimento.agregarRestriccionAlimento(req.params.usuarioID, req.body)
+        const resultado = await RestriccionAlimento.agregarRestriccionAlimento(req.params.usuarioID, req.params.alimentoID, req.body)
         if (resultado.codigo === 400)  {
             res.status(400).send(resultado.error)
         } else if (resultado.codigo === 404)  {
@@ -78,9 +78,9 @@ router.get('/restriccionesIngrediente/usuario/:usuarioID', async function(req, r
 });
 
 /* POST agregar restriccion alimenticia (ingrediente). */
-router.post('/restriccionIngrediente/usuario/:usuarioID', async function (req, res) {
+router.post('/restriccionIngrediente/usuario/:usuarioID/ingrediente/:ingredienteID', async function (req, res) {
     try {
-        const resultado = await RestriccionIngrediente.agregarRestriccionIngrediente(req.params.usuarioID, req.body)
+        const resultado = await RestriccionIngrediente.agregarRestriccionIngrediente(req.params.usuarioID, req.params.ingredienteID, req.body)
         if (resultado.codigo === 400)  {
             res.status(400).send(resultado.error)
         } else if (resultado.codigo === 404)  {

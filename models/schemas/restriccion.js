@@ -1,19 +1,14 @@
 const Joi = require('joi');
 
-const restriccionAlimentoSchema = Joi.object({
-    alimentoID: Joi.number()
-        .integer()
-        .positive()
-        .required(),
-
+const restriccionSchema = Joi.object({
     tipo: Joi.string()
         .valid('Alergia', 'Gusto')
         .required(),
 })
 
-const validarRestriccionAlimento = async (restriccionAlimento) => {
+const validarRestriccion = async (restriccion) => {
     try {
-        await restriccionAlimentoSchema.validateAsync(restriccionAlimento)
+        await restriccionSchema.validateAsync(restriccion)
         return json = {
             valido: true
         }
@@ -27,5 +22,5 @@ const validarRestriccionAlimento = async (restriccionAlimento) => {
 }
 
 module.exports = {
-    validarRestriccionAlimento
+    validarRestriccion
 };

@@ -1,5 +1,5 @@
 const conexionNeo4j = require('../connection/conexionNeo4j');
-const restriccionAlimentoSchema = require('../models/schemas/restriccionAlimento');
+const restriccionSchema = require('../models/schemas/restriccion');
 
 const verRestriccionesAlimento = async (usuarioID) => {
     let sentencia = 'MATCH (u:Usuario {usuarioID: $usuarioID})-[r:RESTRINGE]->(a:Alimento) ' +
@@ -13,8 +13,8 @@ const verRestriccionesAlimento = async (usuarioID) => {
     })
 }
 
-const agregarRestriccionAlimento = async (usuarioID, restriccionAlimento) => {
-    const validacion = await restriccionAlimentoSchema.validarRestriccionAlimento(restriccionAlimento)
+const agregarRestriccionAlimento = async (usuarioID, alimentoID, restriccion) => {
+    const validacion = await restriccionSchema.validarRestriccion(restriccion)
     if (!validacion.valido) { 
         return json = {
             error: validacion.error.details[0].message.toString(),
@@ -26,8 +26,9 @@ const agregarRestriccionAlimento = async (usuarioID, restriccionAlimento) => {
                     'MERGE (u)-[r:RESTRINGE]->(a) ' +
                     'ON CREATE SET r.tipo = $tipo ' +
                     'RETURN r, a'
-    let params = restriccionAlimento
+    let params = restriccion
     params.usuarioID = usuarioID
+    params.alimentoID = alimentoID
     const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
     if (resultado.records[0]) {
         if (resultado.summary.counters._stats.relationshipsCreated) {
