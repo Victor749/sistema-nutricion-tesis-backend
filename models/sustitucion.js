@@ -1,19 +1,24 @@
 const conexionNeo4j = require('../connection/conexionNeo4j');
 const { v4: uuidv4 } = require('uuid');
+const solicitudSustitucionSchema = require('../models/schemas/solicitudSustitucion');
 
-const solicitarSustitucion = async (usuarioID, alimentoID) => {
+const solicitarSustitucion = async (usuarioID, alimentoID, flexible = 'false') => {
+    const validacion = await solicitudSustitucionSchema.validarSolicitudSustitucion({flexible: flexible})
+    if (!validacion.valido) { 
+        return json = {
+            error: validacion.error.details[0].message.toString(),
+            codigo: 400
+        }
+    }
+
     let resultado = {}
     const transaccion = await conexionNeo4j.transaccionCypher()
 
     try {
         const sustitucionID = uuidv4()
-        const ahora = new Date();
-        const fecha_hora = ahora.getFullYear() + "/" + (ahora.getMonth() + 1) + "/" + ahora.getDate() + 
-                           " " + ahora.getHours() + ":" + ahora.getMinutes() + ":" + ahora.getSeconds() 
-                           + "." + ahora.getMilliseconds();
-        const sentencia_sustitucion = 'CREATE (s:Sustitucion {sustitucionID: $sustitucionID, fecha_hora: $fecha_hora, ' +
-                                      'num_intentos: toInteger(0)}) RETURN s'
-        const params_sustitucion = {sustitucionID: sustitucionID, fecha_hora: fecha_hora}
+        const sentencia_sustitucion = "CREATE (s:Sustitucion {sustitucionID: $sustitucionID, fecha_hora: toString(datetime({timezone: 'America/Guayaquil'})), " +
+                                      "num_intentos: toInteger(0)}) RETURN s"
+        const params_sustitucion = {sustitucionID: sustitucionID}
         const resultado_sustitucion = await transaccion.txc.run(sentencia_sustitucion, params_sustitucion)
         resultado = resultado_sustitucion.records[0].get('s').properties
     
@@ -22,10 +27,7 @@ const solicitarSustitucion = async (usuarioID, alimentoID) => {
         const params_usuario = {usuarioID: usuarioID, sustitucionID: sustitucionID}
         const resultado_usuario = await transaccion.txc.run(sentencia_usuario, params_usuario)
         if (resultado_usuario.summary.counters._stats.relationshipsCreated) {
-            resultado.usuario = {
-                usuarioID: resultado_usuario.records[0].get('u').properties.usuarioID,
-                email: resultado_usuario.records[0].get('u').properties.email
-            }
+            resultado.usuario = resultado_usuario.records[0].get('u').properties
         } else {
             await transaccion.txc.rollback()
             return json = {
@@ -39,10 +41,7 @@ const solicitarSustitucion = async (usuarioID, alimentoID) => {
         const params_alimento = {alimentoID: alimentoID, sustitucionID: sustitucionID}
         const resultado_alimento = await transaccion.txc.run(sentencia_alimento, params_alimento)
         if (resultado_alimento.summary.counters._stats.relationshipsCreated) {
-            resultado.reemplazo = {
-                alimentoID: resultado_alimento.records[0].get('a').properties.alimentoID,
-                nombre: resultado_alimento.records[0].get('a').properties.nombre
-            }
+            resultado.reemplazo = resultado_alimento.records[0].get('a').properties
         } else {
             await transaccion.txc.rollback()
             return json = {
@@ -51,13 +50,20 @@ const solicitarSustitucion = async (usuarioID, alimentoID) => {
             }
         }
 
-        /*WHERE NOT (u)-[:RESTRINGE {tipo: 'Alergia'}]->(a2) AND                       
-        NOT (u)-[:RESTRINGE {tipo: 'Alergia'}]->(:Ingrediente)<-[:CONTIENE]-(a2)*/
-        const sentencia_sugerencias = 'MATCH (a:Alimento {alimentoID: toInteger($alimentoID)})-[r:DISTA]->(a2:Alimento),' + 
+        let sentencia_sugerencias = 'MATCH (a:Alimento {alimentoID: toInteger($alimentoID)})-[r:DISTA]->(a2:Alimento),' + 
                                       '(u:Usuario {usuarioID: $usuarioID})' +
-                                      'WHERE NOT (u)-[:RESTRINGE]->(a2) AND ' +
-                                      'NOT (u)-[:RESTRINGE]->(:Ingrediente)<-[:CONTIENE]-(a2) ' +
-                                      'RETURN a2 ORDER BY r.distancia'
+                                      'WHERE '
+
+        // Si una solicitud de sustitucion es flexible no se consideran las restricciones de gusto del usuario                             
+        if (flexible === 'true') {
+            sentencia_sugerencias += "NOT (u)-[:RESTRINGE {tipo: 'Alergia'}]->(a2) AND " +                      
+                                     "NOT (u)-[:RESTRINGE {tipo: 'Alergia'}]->(:Ingrediente)<-[:CONTIENE]-(a2) "
+        } else {
+            sentencia_sugerencias += 'NOT (u)-[:RESTRINGE]->(a2) AND ' +
+                                     'NOT (u)-[:RESTRINGE]->(:Ingrediente)<-[:CONTIENE]-(a2) '
+        }    
+
+        sentencia_sugerencias += 'RETURN a2 ORDER BY r.distancia'
         const params_sugerencias = {alimentoID: alimentoID, usuarioID: usuarioID}
         const resultado_sugerencias = await transaccion.txc.run(sentencia_sugerencias, params_sugerencias)
         resultado.sugerencias = resultado_sugerencias.records.map(record => record.get('a2').properties)

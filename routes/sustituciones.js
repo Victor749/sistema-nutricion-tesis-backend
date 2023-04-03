@@ -6,7 +6,7 @@ var Sustitucion = require('../models/sustitucion');
 /* POST solicitar sustitucion. */
 router.post('/usuario/:usuarioID/alimento/:alimentoID', async function(req, res) {
     try {
-      const resultado = await Sustitucion.solicitarSustitucion(req.params.usuarioID, req.params.alimentoID)
+      const resultado = await Sustitucion.solicitarSustitucion(req.params.usuarioID, req.params.alimentoID, req.query.flexible)
       if (resultado.codigo === 404)  {
         res.status(404).send(resultado.error)
       } else {
