@@ -18,4 +18,19 @@ router.post('/usuario/:usuarioID/alimento/:alimentoID', async function(req, res)
     }
 });
 
+/* POST juzgar sugerencia. */
+router.post('/sugerencia/sustitucion/:sustitucionID/alimento/:alimentoID', async function(req, res) {
+  try {
+    const resultado = await Sustitucion.juzgarSugerencia(req.params.sustitucionID, req.params.alimentoID, req.body)
+    if (resultado.codigo === 404)  {
+      res.status(404).send(resultado.error)
+    } else {
+      res.status(200).json(resultado)
+    }
+  } catch (error) {
+    debug(error)
+    res.status(500).send('Error en el servidor.')
+  }
+});
+
 module.exports = router;
