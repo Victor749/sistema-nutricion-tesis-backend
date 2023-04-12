@@ -21,8 +21,8 @@ const buscar = async (cadenaBusqueda, limite = 10, pagina = 1) => {
             codigo: 400
         }
     }
-    // Regex que busca la cadena de busqueda como una cadena aislada (palabra o frase) dentro de un nombre o descripcion
-    params.cadenaBusquedaRegexExp = '(?i).*\\b' + cadenaBusqueda + '\\b.*'
+    // Regex que busca la cadena de busqueda dentro de un nombre o descripcion (case insensitive)
+    params.cadenaBusquedaRegexExp = '(?i).*' + cadenaBusqueda + '.*'
     // La busqueda consiste en buscar nombres o descripciones que cumplan el regex anterior
     // Los resultados se ordenan en funcion de la posicion de aparicion de la cadena de busqueda y luego en orden alfabetico
     // Se usa SKIP y LIMIT para paginacion (el limite da el tamanio de pagina)
