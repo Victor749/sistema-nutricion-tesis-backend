@@ -83,7 +83,7 @@ const obtenerNutrientes = async (alimentoID) => {
 // --- FIN --- Funciones internas para obtener informacion completa de un alimento por ID ---
 
 const encontrarPorId = async (alimentoID) => {
-    let sentencia = 'MATCH (a:Alimento {alimentoID : toInteger($alimentoID)})' /*RETURN a LIMIT 1'*/ +
+    let sentencia = 'MATCH (a:Alimento {alimentoID : toInteger($alimentoID)})' +
                     'OPTIONAL MATCH (a)-[r1:INTEGRA]->(c:Categoria)' +
                     'OPTIONAL MATCH (a)-[r2:CORRESPONDE]->(m:Marca)' +
                     'OPTIONAL MATCH (a)-[r3:CORRESPONDE]->(m)-[r4:PERTENECE]->(e:Empresa)' +
