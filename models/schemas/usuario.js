@@ -1,6 +1,10 @@
 const Joi = require('joi');
 
 const usuarioSchema = Joi.object({
+    usuarioID: Joi.string()
+        .alphanum()
+        .required(),
+
     nombre: Joi.string()
         .regex(/^\p{L}+$/u) // Solo letras del alfabeto de cualquier idioma
         .required(),

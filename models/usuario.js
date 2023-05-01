@@ -1,7 +1,6 @@
 const conexionNeo4j = require('../connection/conexionNeo4j');
 const Neo4jError =  require('neo4j-driver-core/lib/error.js');
 const usuarioSchema = require('../models/schemas/usuario');
-const { v4: uuidv4 } = require('uuid');
 
 const encontrarTodos = async () => {
     let sentencia = 'MATCH (u:Usuario) RETURN u'
@@ -45,13 +44,11 @@ const crear = async (usuario) => {
             codigo: 400
         }
     }
-    const usuarioID = uuidv4()
     let sentencia = 'CREATE (u:Usuario {usuarioID : $usuarioID, nombre: $nombre,' +
                     'apellido: $apellido, email: $email, sexo: $sexo,' +
                     'anio_nacimiento: toInteger($anio_nacimiento), peso: toInteger($peso),' +
                     'estatura: toInteger($estatura), actividad_fisica: $actividad_fisica}) RETURN u'
     let params = usuario
-    params.usuarioID = usuarioID
     try {
         const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params) 
         return resultado.records[0].get('u').properties
@@ -70,6 +67,7 @@ const crear = async (usuario) => {
 }
 
 const actualizar = async (usuarioID, usuario) => {
+    usuario.usuarioID = usuarioID
     const validacion = await usuarioSchema.validarUsuario(usuario)
     if (!validacion.valido) { 
         return json = {
@@ -82,7 +80,6 @@ const actualizar = async (usuarioID, usuario) => {
                     'u.anio_nacimiento = toInteger($anio_nacimiento), u.peso = toInteger($peso),' +
                     'u.estatura = toInteger($estatura), u.actividad_fisica = $actividad_fisica RETURN u'
     let params = usuario
-    params.usuarioID = usuarioID
     try {
         const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params) 
         if (resultado.records[0]) {
