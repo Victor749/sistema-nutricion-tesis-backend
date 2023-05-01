@@ -46,9 +46,9 @@ router.get('/filtrarYOrdenar/', async function(req, res) {
 });
 
 /* GET alimento por ID. */
-router.get('/:alimentoID', async function(req, res) {
+router.get('/usuario/:usuarioID/alimento/:alimentoID', async function(req, res) {
   try {
-    const resultado = await Alimento.encontrarPorId(req.params.alimentoID)
+    const resultado = await Alimento.encontrarPorId(req.params.usuarioID, req.params.alimentoID)
     if (resultado.codigo === 404)  {
       res.status(404).send(resultado.error)
     } else {

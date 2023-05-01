@@ -82,14 +82,15 @@ const obtenerNutrientes = async (alimentoID) => {
 
 // --- FIN --- Funciones internas para obtener informacion completa de un alimento por ID ---
 
-const encontrarPorId = async (alimentoID) => {
+const encontrarPorId = async (usuarioID, alimentoID) => {
     let sentencia = 'MATCH (a:Alimento {alimentoID : toInteger($alimentoID)})' +
                     'OPTIONAL MATCH (a)-[r1:INTEGRA]->(c:Categoria)' +
                     'OPTIONAL MATCH (a)-[r2:CORRESPONDE]->(m:Marca)' +
                     'OPTIONAL MATCH (a)-[r3:CORRESPONDE]->(m)-[r4:PERTENECE]->(e:Empresa)' +
                     'OPTIONAL MATCH (a)-[r5:MIDE_TAMANO_ENVASE_POR]->(ue:Unidad)' +
                     'OPTIONAL MATCH (a)-[r6:MIDE_TAMANO_PORCION_POR]->(up:Unidad)' +
-                    'RETURN a, c, m, e, ue, up LIMIT 1'
+                    'OPTIONAL MATCH (a)<-[r7:RESTRINGE]->(u:Usuario)' +
+                    'RETURN a, c, m, e, ue, up, r7 LIMIT 1'
     let params = {alimentoID: alimentoID}
     const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
     if (resultado.records[0]) {
@@ -103,6 +104,7 @@ const encontrarPorId = async (alimentoID) => {
         delete alimento.tam_envase_unidad_id
         alimento.tam_porcion_unidad = resultado.records[0].get('up') ? resultado.records[0].get('up').properties : {}
         delete alimento.tam_porcion_unidad_id
+        alimento.restringido = resultado.records[0].get('r7') ? resultado.records[0].get('r7').properties : false
         alimento.ingredientes = await obtenerIngredientes(alimentoID)
         alimento.nutrientes = await obtenerNutrientes(alimentoID)
         return alimento
