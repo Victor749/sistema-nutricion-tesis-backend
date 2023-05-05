@@ -103,11 +103,26 @@ const actualizar = async (usuarioID, usuario) => {
     }
 }
 
+const eliminar = async (usuarioID) => {
+    let sentencia = 'MATCH (u:Usuario {usuarioID : $usuarioID}) REMOVE u:Usuario SET u:UsuarioEliminado'
+    let params = {usuarioID: usuarioID}
+    const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
+    if (resultado.summary.counters._stats.labelsAdded && resultado.summary.counters._stats.labelsRemoved) {
+        return 'Usuario eliminado con éxito.'
+    } else {
+        return json = {
+            error: 'Usuario no encontrado.',
+            codigo: 404
+        }
+    }
+}
+
 module.exports = {
     encontrarTodos,
     encontrarPorId,
     encontrarPorEmail,
     crear,
-    actualizar
+    actualizar,
+    eliminar
 };
    

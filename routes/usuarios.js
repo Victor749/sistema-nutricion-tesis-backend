@@ -76,4 +76,19 @@ router.put('/:usuarioID', async function (req, res) {
   }
 })
 
+/* DELETE eliminar usuario. */
+router.delete('/:usuarioID', async function (req, res) {
+  try {
+    const resultado = await Usuario.eliminar(req.params.usuarioID)
+    if (resultado.codigo === 404) {
+      res.status(404).send(resultado.error)
+    } else {
+      res.status(200).send(resultado)
+    }
+  } catch (error) {
+    debug(error)
+    res.status(500).send('Error en el servidor.')
+  }
+})
+
 module.exports = router;
