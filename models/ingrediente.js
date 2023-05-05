@@ -34,13 +34,11 @@ const buscar = async (cadenaBusqueda, limite = 10, pagina = 1) => {
             codigo: 400
         }
     }
-    // Regex que busca la cadena de busqueda dentro de un nombre o descripcion (case insensitive)
-    params.cadenaBusquedaRegexExp = '(?i).*' + cadenaBusqueda + '.*'
-    // La busqueda consiste en buscar nombres o descripciones que cumplan el regex anterior
-    // Los resultados se ordenan en funcion de la posicion de aparicion de la cadena de busqueda y luego en orden alfabetico
+    // Se hace un trim de la cadena de busqueda para quitar espacios no deseados
+    params.cadenaBusqueda = cadenaBusqueda.trim()
+    // La busqueda consiste en buscar nombres o descripciones con la libreria de busqueda inteligente Apache Lucene
     // Se usa SKIP y LIMIT para paginacion (el limite da el tamanio de pagina)
-    let sentencia = 'MATCH (i:Ingrediente) WHERE i.descripcion =~ $cadenaBusquedaRegexExp RETURN i ' +
-                    'ORDER BY apoc.text.indexOf(TOUPPER(i.descripcion), TOUPPER($cadenaBusqueda)), i.descripcion ' +
+    let sentencia = "CALL db.index.fulltext.queryNodes('nombresIngredientes', $cadenaBusqueda) YIELD node as i RETURN i " +
                     'SKIP toInteger($pagina) * toInteger($limite) - toInteger($limite) LIMIT toInteger($limite)'
     const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
     return resultado.records.map(record => record.get('i').properties)

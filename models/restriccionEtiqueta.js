@@ -73,7 +73,7 @@ const agregarRestriccionesEtiquetas = async (usuarioID, restricciones) => {
                         WITH restriccion, numero_alimentos, numero_ingredientes
                         WHERE numero_alimentos + numero_ingredientes > 0
                         MATCH (u:Usuario {usuarioID: $usuarioID})
-                        MERGE (e:Etiqueta {texto: TOUPPER(restriccion.texto)})
+                        MERGE (e:Etiqueta {texto: TOUPPER(TRIM(restriccion.texto))})
                         ON CREATE SET e.numero_alimentos = numero_alimentos,  e.numero_ingredientes = numero_ingredientes 
                         ON MATCH SET e.numero_alimentos = numero_alimentos,  e.numero_ingredientes = numero_ingredientes 
                         MERGE (u)-[r:RESTRINGE]->(e) 
@@ -95,7 +95,7 @@ const agregarRestriccionesEtiquetas = async (usuarioID, restricciones) => {
 
 const quitarRestriccionEtiqueta = async (usuarioID, etiqueta) => {
     let sentencia = 'MATCH (u:Usuario {usuarioID: $usuarioID})-[r:RESTRINGE]->' +
-                    '(e:Etiqueta {texto: TOUPPER($etiqueta)})' +
+                    '(e:Etiqueta {texto: TOUPPER(TRIM($etiqueta))})' +
                     'DELETE r'
     let params = {}
     params.usuarioID = usuarioID
