@@ -106,6 +106,23 @@ router.get('/restriccionEtiqueta/usuario/:usuarioID', async function(req, res) {
     }
 });
 
+/* GET verificar restricciones alimenticias (etiquetas). */
+router.get('/restriccionEtiqueta/verificar', async function (req, res) {
+    try {
+        const resultado = await RestriccionEtiqueta.verificarRestriccionesEtiquetas(req.body)
+        if (resultado.codigo === 400)  {
+            res.status(400).send(resultado.error)
+        } else if (resultado.codigo === 404)  {
+            res.status(404).send(resultado.error)
+        } else {
+            res.status(201).json(resultado)
+        }
+    } catch (error) {
+        debug(error)
+        res.status(500).send('Error en el servidor.')
+    }
+})
+
 /* POST agregar restricciones alimenticia (etiquetas). */
 router.post('/restriccionEtiqueta/usuario/:usuarioID', async function (req, res) {
     try {

@@ -14,6 +14,41 @@ const verRestriccionesEtiquetas = async (usuarioID) => {
     })
 }
 
+const verificarRestriccionesEtiquetas = async (restricciones) => {
+    const validacion = await restriccionesEtiquetasSchema.validarRestriccionesEtiquetas(restricciones)
+    if (!validacion.valido) { 
+        return json = {
+            error: validacion.error.details[0].message.toString(),
+            codigo: 400
+        }
+    }
+    let sentencia = `UNWIND $restriccionesEtiquetas as restriccion
+                    CALL { 
+                        WITH restriccion 
+                        CALL db.index.fulltext.queryNodes('nombresAlimentos', restriccion.texto) YIELD node as a
+                        RETURN COUNT(a) as numero_alimentos
+                    }
+                    CALL { 
+                        WITH restriccion
+                        CALL db.index.fulltext.queryNodes('nombresIngredientes', restriccion.texto) YIELD node as i 
+                        RETURN COUNT(i) as numero_ingredientes
+                    }
+                    CALL {
+                        WITH restriccion, numero_alimentos, numero_ingredientes
+                        WITH restriccion, numero_alimentos, numero_ingredientes
+                        RETURN restriccion.tipo as r, {texto: restriccion.texto, numero_alimentos: numero_alimentos, numero_ingredientes: numero_ingredientes} as e
+                    }
+                    RETURN r, e`
+    let params = restricciones
+    const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
+    return resultado.records.map(record => json = {
+        etiqueta: record.get('e').texto,
+        tipo: record.get('r'),
+        numero_alimentos: record.get('e').numero_alimentos,
+        numero_ingredientes: record.get('e').numero_ingredientes
+    })
+}
+
 const agregarRestriccionesEtiquetas = async (usuarioID, restricciones) => {
     const validacion = await restriccionesEtiquetasSchema.validarRestriccionesEtiquetas(restricciones)
     if (!validacion.valido) { 
@@ -78,6 +113,7 @@ const quitarRestriccionEtiqueta = async (usuarioID, etiqueta) => {
 
 module.exports = {
     verRestriccionesEtiquetas,
+    verificarRestriccionesEtiquetas,
     agregarRestriccionesEtiquetas,
     quitarRestriccionEtiqueta
 };
