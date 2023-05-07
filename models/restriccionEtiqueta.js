@@ -7,6 +7,7 @@ const verRestriccionesEtiquetas = async (usuarioID) => {
     let params = {usuarioID: usuarioID}
     const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
     return resultado.records.map(record => json = {
+        busqueda: record.get('e').properties.busqueda,
         etiqueta: record.get('e').properties.texto,
         tipo: record.get('r').properties.tipo,
         numero_alimentos: record.get('e').properties.numero_alimentos,
@@ -23,27 +24,34 @@ const verificarRestriccionesEtiquetas = async (restricciones) => {
         }
     }
     let sentencia = `UNWIND $restriccionesEtiquetas as restriccion
+                    CALL {
+                        WITH restriccion
+                        RETURN TOUPPER(apoc.text.join(apoc.text.split(TRIM(restriccion.texto), ' +'), ' ')) as texto,
+                        TOUPPER(apoc.text.join(apoc.text.split(TRIM(restriccion.texto), ' +'), ' AND ')) as busqueda,
+                        restriccion.tipo as tipo
+                    }
                     CALL { 
-                        WITH restriccion 
-                        CALL db.index.fulltext.queryNodes('nombresAlimentos', restriccion.texto) YIELD node as a
+                        WITH busqueda 
+                        CALL db.index.fulltext.queryNodes('nombresAlimentos', busqueda) YIELD node as a
                         RETURN COUNT(a) as numero_alimentos
                     }
                     CALL { 
-                        WITH restriccion
-                        CALL db.index.fulltext.queryNodes('nombresIngredientes', restriccion.texto) YIELD node as i 
+                        WITH busqueda
+                        CALL db.index.fulltext.queryNodes('nombresIngredientes', busqueda) YIELD node as i 
                         RETURN COUNT(i) as numero_ingredientes
                     }
                     CALL {
-                        WITH restriccion, numero_alimentos, numero_ingredientes
-                        WITH restriccion, numero_alimentos, numero_ingredientes
-                        RETURN restriccion.tipo as r, {texto: restriccion.texto, numero_alimentos: numero_alimentos, numero_ingredientes: numero_ingredientes} as e
+                        WITH texto, busqueda, tipo, numero_alimentos, numero_ingredientes
+                        WITH texto, busqueda, tipo, numero_alimentos, numero_ingredientes
+                        RETURN {texto: texto, busqueda: busqueda, numero_alimentos: numero_alimentos, numero_ingredientes: numero_ingredientes} as e
                     }
-                    RETURN r, e`
+                    RETURN e`
     let params = restricciones
     const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
     return resultado.records.map(record => json = {
+        busqueda: record.get('e').busqueda,
         etiqueta: record.get('e').texto,
-        tipo: record.get('r'),
+        tipo: record.get('e').tipo,
         numero_alimentos: record.get('e').numero_alimentos,
         numero_ingredientes: record.get('e').numero_ingredientes
     })
@@ -58,27 +66,33 @@ const agregarRestriccionesEtiquetas = async (usuarioID, restricciones) => {
         }
     }
     let sentencia = `UNWIND $restriccionesEtiquetas as restriccion
+                    CALL {
+                        WITH restriccion
+                        RETURN TOUPPER(apoc.text.join(apoc.text.split(TRIM(restriccion.texto), ' +'), ' ')) as texto,
+                        TOUPPER(apoc.text.join(apoc.text.split(TRIM(restriccion.texto), ' +'), ' AND ')) as busqueda,
+                        restriccion.tipo as tipo
+                    }
                     CALL { 
-                        WITH restriccion 
-                        CALL db.index.fulltext.queryNodes('nombresAlimentos', restriccion.texto) YIELD node as a
+                        WITH busqueda 
+                        CALL db.index.fulltext.queryNodes('nombresAlimentos', busqueda) YIELD node as a
                         RETURN COUNT(a) as numero_alimentos
                     }
                     CALL { 
-                        WITH restriccion
-                        CALL db.index.fulltext.queryNodes('nombresIngredientes', restriccion.texto) YIELD node as i 
+                        WITH busqueda
+                        CALL db.index.fulltext.queryNodes('nombresIngredientes', busqueda) YIELD node as i 
                         RETURN COUNT(i) as numero_ingredientes
                     }
                     CALL {
-                        WITH restriccion, numero_alimentos, numero_ingredientes
-                        WITH restriccion, numero_alimentos, numero_ingredientes
+                        WITH texto, busqueda, tipo, numero_alimentos, numero_ingredientes
+                        WITH texto, busqueda, tipo, numero_alimentos, numero_ingredientes
                         WHERE numero_alimentos + numero_ingredientes > 0
                         MATCH (u:Usuario {usuarioID: $usuarioID})
-                        MERGE (e:Etiqueta {texto: TOUPPER(TRIM(restriccion.texto))})
+                        MERGE (e:Etiqueta {texto: texto, busqueda: busqueda})
                         ON CREATE SET e.numero_alimentos = numero_alimentos,  e.numero_ingredientes = numero_ingredientes 
                         ON MATCH SET e.numero_alimentos = numero_alimentos,  e.numero_ingredientes = numero_ingredientes 
                         MERGE (u)-[r:RESTRINGE]->(e) 
-                        ON CREATE SET r.tipo = restriccion.tipo
-                        ON MATCH SET r.tipo = restriccion.tipo 
+                        ON CREATE SET r.tipo = tipo
+                        ON MATCH SET r.tipo = tipo
                         RETURN r, e
                     }
                     RETURN r, e`
@@ -86,6 +100,7 @@ const agregarRestriccionesEtiquetas = async (usuarioID, restricciones) => {
     params.usuarioID = usuarioID
     const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
     return resultado.records.map(record => json = {
+        busqueda: record.get('e').properties.busqueda,
         etiqueta: record.get('e').properties.texto,
         tipo: record.get('r').properties.tipo,
         numero_alimentos: record.get('e').properties.numero_alimentos,
@@ -95,7 +110,7 @@ const agregarRestriccionesEtiquetas = async (usuarioID, restricciones) => {
 
 const quitarRestriccionEtiqueta = async (usuarioID, etiqueta) => {
     let sentencia = 'MATCH (u:Usuario {usuarioID: $usuarioID})-[r:RESTRINGE]->' +
-                    '(e:Etiqueta {texto: TOUPPER(TRIM($etiqueta))})' +
+                    "(e:Etiqueta {texto: TOUPPER(apoc.text.join(apoc.text.split(TRIM($etiqueta), ' +'), ' '))})" +
                     'DELETE r'
     let params = {}
     params.usuarioID = usuarioID
