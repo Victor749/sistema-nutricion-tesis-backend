@@ -19,11 +19,26 @@ router.post('/usuario/:usuarioID/alimento/:alimentoID', async function(req, res)
 });
 
 /* POST juzgar sugerencia. */
-router.post('/sugerencia/sustitucion/:sustitucionID/alimento/:alimentoID', async function(req, res) {
+router.post('/sugerencia/usuario/:usuarioID/sustitucion/:sustitucionID/alimento/:alimentoID', async function(req, res) {
   try {
-    const resultado = await Sustitucion.juzgarSugerencia(req.params.sustitucionID, req.params.alimentoID, req.body)
+    const resultado = await Sustitucion.juzgarSugerencia(req.params.usuarioID, req.params.sustitucionID, req.params.alimentoID, req.body)
     if (resultado.codigo === 404)  {
       res.status(404).send(resultado.error)
+    } else {
+      res.status(200).json(resultado)
+    }
+  } catch (error) {
+    debug(error)
+    res.status(500).send('Error en el servidor.')
+  }
+});
+
+/* GET historial de de sustituciones. */
+router.get('/historial/usuario/:usuarioID', async function(req, res) {
+  try {
+    const resultado = await Sustitucion.historialSugerencias(req.params.usuarioID, req.query.limite, req.query.pagina)
+    if (resultado.codigo === 400)  {
+      res.status(400).send(resultado.error)
     } else {
       res.status(200).json(resultado)
     }
