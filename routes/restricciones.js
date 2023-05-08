@@ -106,8 +106,8 @@ router.get('/restriccionEtiqueta/usuario/:usuarioID', async function(req, res) {
     }
 });
 
-/* GET verificar restricciones alimenticias (etiquetas). */
-router.get('/restriccionEtiqueta/verificar', async function (req, res) {
+/* POST verificar restricciones alimenticias (etiquetas). */
+router.post('/restriccionEtiqueta/verificar', async function (req, res) {
     try {
         const resultado = await RestriccionEtiqueta.verificarRestriccionesEtiquetas(req.body)
         if (resultado.codigo === 400)  {
