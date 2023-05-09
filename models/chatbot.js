@@ -1,6 +1,8 @@
 const conexionNeo4j = require('../connection/conexionNeo4j');
+const Neo4jError =  require('neo4j-driver-core/lib/error.js');
 const { Configuration, OpenAIApi } = require("openai");
 const promptSchema = require('../models/schemas/prompt');
+const historialSchema = require('../models/schemas/historial');
 
 const configuration = new Configuration({
     apiKey: process.env.OPENAI_API_KEY,
@@ -8,207 +10,200 @@ const configuration = new Configuration({
 
 const openai = new OpenAIApi(configuration);
 
-// Se usa la API de OpenAI para obtener los parametros relevantes de un determinado numero de tipos de preguntas
-// Esta cadena contiene conjunto de pares pregunta y respuesta (parametros) que se usan como entrenamiento
-const entrenamiento = `
+const entrenamientoTexto2Cypher = `
+Eres un asistente con la capacidad de generar consultas Cypher basadas en consultas Cypher de ejemplo.
+Las consultas de Cypher de ejemplo son:
+
 #¿Cuánto del nutriente azúcar hay en el alimento mango?; ¿Cuánta azúcar tiene un mango?
-{"alimento": "mango", "nutriente": "azúcar", "tipo": 1}
+CALL db.index.fulltext.queryNodes('nombresAlimentos', 'mango') YIELD node as a
+CALL db.index.fulltext.queryNodes('nombresNutrientes', 'azúcar') YIELD node as n
+MATCH (a)-[r1:TIENE]->(n)-[r2:SE_MIDE_POR]->(u:Unidad)
+RETURN {valor_nutricional: {alimento: a.nombre, valor: r1.valor, referencia: r1.cantidad_referencia,
+nutriente: n.nombre, unidad: u.nombre}} as resultado LIMIT 1
 
-#¿Cuál es el tamaño de porción del alimento galletas?; Dime a cuánto equivale una porción de las galletas
-{"alimento": "galletas", "tipo": 2}
+#¿Cuál es el tamaño de porción del alimento galletas?; Dime a cuánto equivale una porción de las galletas.
+CALL db.index.fulltext.queryNodes('nombresAlimentos', 'galletas') YIELD node as a
+MATCH (a)-[r:MIDE_TAMANO_PORCION_POR]->(u:Unidad)
+RETURN {porcion: {alimento: a.nombre, tamano_porcion: a.tam_porcion, unidad: u.nombre}} as resultado LIMIT 1
 
-#¿Cuál es el tamaño de envase del alimento Natura?; Dime cuánto tiene el envase de Natura
-{"alimento": "Natura", "tipo": 3}
+#¿Cuál es el tamaño de envase del alimento yogurt?; Dime cuánto tiene el envase de yogurt.
+CALL db.index.fulltext.queryNodes('nombresAlimentos', 'yogurt') YIELD node as a
+MATCH (a)-[r:MIDE_TAMANO_ENVASE_POR]->(u:Unidad)
+RETURN {envase: {alimento: a.nombre, tamano_envase: a.tam_envase, unidad: u.nombre}} as resultado LIMIT 1
 
 #¿Cuál alimento tiene más del nutriente fibra entre un nabo y un melloco?; ¿Qué tiene más fibra entre un nabo o un melloco?
-{"alimento1": "nabo", "alimento2": "melloco", "nutriente": "fibra", "tipo": 4}
+CALL db.index.fulltext.queryNodes('nombresAlimentos', 'nabo') YIELD node as a1
+CALL db.index.fulltext.queryNodes('nombresAlimentos', 'melloco') YIELD node as a2
+CALL db.index.fulltext.queryNodes('nombresNutrientes', 'fibra') YIELD node as n
+MATCH (a1)-[r1:TIENE]->(n)-[r2:SE_MIDE_POR]->(u:Unidad)
+MATCH (a2)-[r3:TIENE]->(n)
+RETURN {comparacion_nutricional: {valor_nutricional1: {alimento: a1.nombre, valor: r1.valor, referencia: r1.cantidad_referencia},
+valor_nutricional2: {alimento: a2.nombre, valor: r3.valor, referencia: r3.cantidad_referencia},
+nutriente: n.nombre, unidad: u.nombre}} as resultado LIMIT 1
 
 #¿Cuál es la lista de nutrientes del alimento chorizo?; Dime la tabla nutricional del chorizo.
-{"alimento": "chorizo", "tipo": 5}
+CALL db.index.fulltext.queryNodes('nombresAlimentos', 'chorizo') YIELD node as a WITH a LIMIT 1
+MATCH (a)-[r1:TIENE]->(n:Nutriente)-[r2:SE_MIDE_POR]->(u:Unidad)
+WITH a as a, collect({valor: r1.valor, referencia: r1.cantidad_referencia, nutriente: n.nombre, unidad: u.nombre}) as nutrientes
+RETURN {tabla_nutricional: {alimento: a.nombre, nutrientes: nutrientes}} as resultado
 
 #¿Cuáles son los ingredientes del alimento GelaToni?; Dime los ingredientes de la GelaToni.
-{"alimento": "GelaToni", "tipo": 6}
+CALL db.index.fulltext.queryNodes('nombresAlimentos', 'GelaToni') YIELD node as a WITH a LIMIT 1
+MATCH (a)-[r:CONTIENE]->(i:Ingrediente)
+WITH a as a, collect({ingrediente: i.descripcion}) as ingredientes
+RETURN {lista_ingredientes: {alimento: a.nombre, ingredientes: ingredientes}} as resultado
 
-#Cualquier otra cosa
-{"tipo": 0}
+#Proporciona información general del alimento queso; Dame información del queso.
+CALL db.index.fulltext.queryNodes('nombresAlimentos', 'queso') YIELD node as a
+OPTIONAL MATCH (a)-[r1:INTEGRA]->(c:Categoria)
+OPTIONAL MATCH (a)-[r2:CORRESPONDE]->(m:Marca)
+OPTIONAL MATCH (a)-[r3:CORRESPONDE]->(m)-[r4:PERTENECE]->(e:Empresa)
+OPTIONAL MATCH (a)-[r5:MIDE_TAMANO_ENVASE_POR]->(ue:Unidad)
+OPTIONAL MATCH (a)-[r6:MIDE_TAMANO_PORCION_POR]->(up:Unidad)
+RETURN {alimento: {nombre: a.nombre, categoria: c.nombre, marca: m.nombre, empresa: e.nombre, porcion: a.tam_porcion + up.nombre,
+envase: a.tam_envase + ue.nombre, porciones_por_envase: a.num_porciones_x_envase, clasificacion_nova: a.clasificacion_nova,
+advertencia_azucar: a.advertencia_azucar, advertencia_sal: a.advertencia_sal, advertencia_grasa: a.advertencia_grasa}}
+as resultado LIMIT 1
 
-#`;
+#Sugiere alimentos de la categoría snacks que no contengan los ingredientes sal, papas o queso; Dime snacks sin sal, papas o queso.
+CALL db.index.fulltext.queryNodes('nombresCategorias', 'snacks') YIELD node as c WITH c LIMIT 1
+CALL db.index.fulltext.queryNodes('nombresIngredientes', 'sal OR papas OR queso') YIELD node as i
+MATCH (a:Alimento)-[r1:INTEGRA]->(c)
+WHERE NOT (a)-[:CONTIENE]->(i)
+WITH c, a as a LIMIT 5
+WITH c, collect({alimento: a.nombre}) as alimentos
+RETURN {recomendacion: {categoria: c.nombre, restricciones_proporcionadas: 'sal, papas, queso', sugerencias: alimentos}} as resultado
 
-// En esta funcion se determina el tipo de consulta que se debe hacer a la base de datos Neo4j dependiendo del tipo
-// y los parametros obtenidos por la API de OpenAI
-const ejecutarConsulta = async (params) => {
-    const tipo = params.tipo
-    delete params.tipo
-    let sentencia = ""
-    let resultado = {}
-    let respuesta = ""
-    let vacia = false
-    switch(tipo) {
-        case 0:
-            respuesta = "Lo siento, no entendí su pregunta o no tengo la capacidad de responder a eso. ¿Puedo ayudarle en algo más?"
-            break
-        case 1:
-            sentencia = 'CALL db.index.fulltext.queryNodes("nombresAlimentos", $alimento) YIELD node as a ' +
-                        'CALL db.index.fulltext.queryNodes("nombresNutrientes", $nutriente) YIELD node as n ' +
-                        'MATCH (a)-[r1:TIENE]->(n)-[r2:SE_MIDE_POR]->(u:Unidad) ' +
-                        'RETURN a, r1, n, u LIMIT 1'
-            resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
-            if (resultado.records[0]) {
-                const alimento = resultado.records[0].get('a').properties.nombre
-                const nutriente = resultado.records[0].get('n').properties.nombre
-                const valor = resultado.records[0].get('r1').properties.valor
-                const referencia = resultado.records[0].get('r1').properties.cantidad_referencia
-                const unidad = resultado.records[0].get('u').properties.nombre
-                respuesta = "Hay " + valor + " " + unidad + " de " + nutriente + " por cada " + referencia + " de " + alimento + "."
-            } else {
-                vacia = true
-            }
-            break
-        case 2:
-            sentencia = 'CALL db.index.fulltext.queryNodes("nombresAlimentos", $alimento) YIELD node as a ' +
-                        'MATCH (a)-[r:MIDE_TAMANO_PORCION_POR]->(u:Unidad) ' +
-                        'RETURN a, u LIMIT 1'
-            resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
-            if (resultado.records[0]) {
-                const alimento = resultado.records[0].get('a').properties.nombre
-                const tam_porcion = resultado.records[0].get('a').properties.tam_porcion
-                const unidad = resultado.records[0].get('u').properties.nombre
-                respuesta = alimento + " tiene un tamaño de porción equivalente a " + tam_porcion + " " + unidad + "."
-            } else {
-                vacia = true
-            }
-            break
-        case 3:
-            sentencia = 'CALL db.index.fulltext.queryNodes("nombresAlimentos", $alimento) YIELD node as a ' +
-                        'MATCH (a)-[r:MIDE_TAMANO_ENVASE_POR]->(u:Unidad) ' +
-                        'RETURN a, u LIMIT 1'
-            resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
-            if (resultado.records[0]) {
-                const alimento = resultado.records[0].get('a').properties.nombre
-                const tam_envase = resultado.records[0].get('a').properties.tam_envase
-                const unidad = resultado.records[0].get('u').properties.nombre
-                respuesta = alimento + " tiene un tamaño de envase equivalente a " + tam_envase + " " + unidad + "."
-            } else {
-                vacia = true
-            }
-            break
-        case 4:
-            sentencia = 'CALL db.index.fulltext.queryNodes("nombresAlimentos", $alimento1) YIELD node as a1 ' +
-                        'CALL db.index.fulltext.queryNodes("nombresAlimentos", $alimento2) YIELD node as a2 ' +
-                        'CALL db.index.fulltext.queryNodes("nombresNutrientes", $nutriente) YIELD node as n ' +
-                        'MATCH (a1)-[r1:TIENE]->(n)-[r2:SE_MIDE_POR]->(u1:Unidad) ' + 
-                        'MATCH (a2)-[r3:TIENE]->(n)-[r4:SE_MIDE_POR]->(u2:Unidad) ' +
-                        'RETURN a1, a2, r1, r3, n, u1, u2 LIMIT 1'
-            resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
-            if (resultado.records[0]) {
-                const alimento1 = resultado.records[0].get('a1').properties.nombre
-                const alimento2 = resultado.records[0].get('a2').properties.nombre
-                const nutriente = resultado.records[0].get('n').properties.nombre
-                const valor1 = resultado.records[0].get('r1').properties.valor
-                const referencia1 = resultado.records[0].get('r1').properties.cantidad_referencia
-                const valor2 = resultado.records[0].get('r3').properties.valor
-                const referencia2 = resultado.records[0].get('r3').properties.cantidad_referencia
-                const unidad1 = resultado.records[0].get('u1').properties.nombre
-                const unidad2 = resultado.records[0].get('u2').properties.nombre
-                respuesta = alimento1 + " tiene " + valor1 + " " + unidad1 +  " de " + nutriente + " por cada " + referencia1 +
-                            ", mientras que " + alimento2 + " tiene " + valor2 + " " + unidad2 +  " de " + nutriente + " por cada " + 
-                            referencia2 + "."
-                if (referencia1 === "100 g" && referencia2 === "100 g") {
-                    let alimento_con_mas = ""
-                    let alimento_con_menos = ""
-                    let iguales = false
-                    if (valor1 > valor2) {
-                        alimento_con_mas = alimento1
-                        alimento_con_menos = alimento2
-                    } else if (valor1 < valor2) {
-                        alimento_con_mas = alimento2
-                        alimento_con_menos = alimento1
-                    } else {
-                        iguales = true
-                    }
-                    if (iguales) {
-                        respuesta += " Por lo tanto, ambos alimentos tienen igual cantidad de " + nutriente + "."
-                    } else {
-                        respuesta += " Por lo tanto, " + alimento_con_mas + " tiene más " + nutriente + " que " + alimento_con_menos + "."
-                    }
-                    
-                }
-            } else {
-                vacia = true
-            }
-            break
-        case 5:
-            sentencia = 'CALL db.index.fulltext.queryNodes("nombresAlimentos", $alimento) YIELD node as a WITH a LIMIT 1 ' +
-                        'MATCH (a)-[r1:TIENE]->(n:Nutriente)-[r2:SE_MIDE_POR]->(u:Unidad) RETURN a, r1, n, u'
-            resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
-            if (resultado.records[0]) {
-                const alimento = resultado.records[0].get('a').properties.nombre
-                const nutrientes = resultado.records.map(record => record.get('n').properties.nombre)
-                const valores = resultado.records.map(record => record.get('r1').properties.valor)
-                const referencias = resultado.records.map(record => record.get('r1').properties.cantidad_referencia)
-                const unidades = resultado.records.map(record => record.get('u').properties.nombre)
-                respuesta = alimento + " tiene la siguiente tabla nutricional: \n"
-                for (let i = 0; i < nutrientes.length; i++) {
-                    respuesta += "- " + nutrientes[i] + " (" + valores[i] + " " + unidades[i] + " por cada " + referencias[i] + ")\n"
-                }
-            } else {
-                vacia = true
-            }
-            break
-        case 6:
-            sentencia = 'CALL db.index.fulltext.queryNodes("nombresAlimentos", $alimento) YIELD node as a WITH a LIMIT 1 ' +
-                        'MATCH (a)-[:CONTIENE]->(i:Ingrediente) RETURN a, i'
-            resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
-            if (resultado.records[0]) {
-                const alimento = resultado.records[0].get('a').properties.nombre
-                const ingredientes = resultado.records.map(record => record.get('i').properties.descripcion)
-                respuesta = alimento + " tiene los siguientes ingredientes: \n"
-                ingredientes.forEach(ingrediente => {
-                    respuesta += "- " + ingrediente + "\n"
-                });
-            } else {
-                vacia = true
-            }
-            break
-        default:
-            respuesta = "¡Vaya! Ocurrió algo inesperado. Inténtelo de nuevo más tarde o contacte con el servicio de asistencia."
-            break
-    }
-    if (vacia) {
-        respuesta = "Disculpe, no soy capaz de responder a su pregunta. Puede que no exista información suficiente para hacerlo. " +
-                    "O podría necesitar ser más específico (use nombres que sean lo más precisos posibles)."
-    }
-    return respuesta
+#¿Qué categorías de alimentos produce la empresa Tonicorp?; Dime las categorías de productos de Tonicorp.
+CALL db.index.fulltext.queryNodes('nombresEmpresas', 'Tonicorp') YIELD node as e
+CALL {
+    WITH e
+    MATCH (c:Categoria)<-[:INTEGRA]-(:Alimento)-[:CORRESPONDE]->(:Marca)-[:PERTENECE]->(e)
+    RETURN DISTINCT c.nombre as categoria
 }
+WITH e, collect(categoria) as categorias
+RETURN {categorias_por_empresa: {empresa: e.nombre, categorias: categorias}} as resultado
 
-// Con esta funcion se procesan las preguntas de los usuarios, se obtienen el tipo y los parametros de la misma,
-// para luego enviarlos a la funcion ejecutarConsulta. Aqui se configura el acceso al metodo de completar de OpenAI
-const hacerPregunta = async (promt) => {
-    const validacion = await promptSchema.validarPrompt(promt)
+#¿Qué alimentos que sean jamones tiene la marca Plumrose?; Dime los jamones que oferta Plumrose.
+CALL db.index.fulltext.queryNodes('nombresMarcas', 'Plumrose') YIELD node as m
+CALL {
+    WITH m
+    CALL db.index.fulltext.queryNodes('nombresAlimentos', 'jamon') YIELD node as a
+    MATCH (a)-[:CORRESPONDE]->(m)
+    RETURN a.nombre as alimento
+}
+WITH m, collect(alimento) as alimentos
+RETURN {alimentos_por_marca: {marca: m.nombre, alimentos: alimentos, tipo_alimento: 'jamon'}} as resultado
+
+#¿Qué alimento puede reemplazar el alimento tigreton?; Dime un sustituto del tigreton.
+CALL db.index.fulltext.queryNodes('nombresAlimentos', 'tigreton') YIELD node as a WITH a LIMIT 1
+MATCH (a)-[r:DISTA]->(a2:Alimento)
+WITH a, a2 ORDER BY r.distancia LIMIT 5
+WITH a, collect(a2.nombre) as sugerencias
+RETURN {sustitucion: {alimento_a_sustituir: a.nombre, sugerencias: sugerencias}} as resultado
+
+No respondas con ninguna explicación o cualquier otra información, excepto la consulta Cypher.
+Nunca te disculpes y genera estrictamente declaraciones Cypher basadas en los ejemplos proporcionados.
+No proporciones sentencias Cypher que no se puedan deducir de los ejemplos.
+Informa al usuario cuando no puedas inferir la sentencia Cypher debido a la falta de contexto de la conversación e indica cuál es el contexto faltante.
+`;
+
+const entrenamientoJSON2Texto = `
+Eres un asistente que ayuda a generar texto para formar respuestas agradables y comprensibles para los humanos.
+El mensaje más reciente contiene la información, y debes generar una respuesta legible por humanos basada en la información proporcionada.
+Haz que parezca que la información proviene de un asistente de IA, pero no agregues ninguna información.
+No agregues ninguna información adicional que no se proporcione explícitamente en el mensaje más reciente.
+Repito, no añadas ninguna información que no esté explícitamente dada.
+`
+
+const hacerPregunta = async (usuarioID, prompt) => {
+    const validacion = await promptSchema.validarPrompt(prompt)
     if (!validacion.valido) { 
         return json = {
             error: validacion.error.details[0].message.toString(),
             codigo: 400
         }
     }
-    const respuesta = await openai.createCompletion({
-        model: "text-davinci-003",
-        prompt: entrenamiento + promt.pregunta + "\n",
-        temperature: 0,
-        max_tokens: 150,
-        top_p: 1.0,
-        frequency_penalty: 0.0,
-        presence_penalty: 0.0,
-        stop: ["#", ";"],
+
+    const params = {usuarioID: usuarioID, interrogante: prompt.pregunta.trim()}
+    let respuesta = ""
+
+    let mensajesTexto2Cypher = []
+    mensajesTexto2Cypher.push({ role: "system", content: entrenamientoTexto2Cypher })
+    mensajesTexto2Cypher.push({ role: "user", content: prompt.pregunta.trim() })
+    const respuestaTexto2Cypher = await openai.createChatCompletion({
+        model: "gpt-3.5-turbo",
+        messages: mensajesTexto2Cypher,
+        temperature: 0.0,
     });
+    const sentencia = respuestaTexto2Cypher.data.choices[0].message.content
+    params.sentenciaCypher = sentencia
+    console.log("\n" + "******* SENTENCIA *******" + "\n" + sentencia + "\n")
+
     try {
-        const params = JSON.parse(respuesta.data.choices[0].text)
-        return await ejecutarConsulta(params)
+        const resultado = await conexionNeo4j.ejecutarCypher(sentencia)
+            if (resultado.records[0]) {
+                const informacion = JSON.stringify(resultado.records[0].get('resultado'))
+                params.informacionJSON = informacion
+                console.log("\n" + "******* RESULTADO *******" + "\n" + informacion + "\n")
+                let mensajesJSON2Texto = []
+                mensajesJSON2Texto.push({ role: "system", content: entrenamientoJSON2Texto })
+                mensajesJSON2Texto.push({ role: "user", content: informacion})
+                const respuestaJSON2Texto = await openai.createChatCompletion({
+                    model: "gpt-3.5-turbo",
+                    messages: mensajesJSON2Texto,
+                    temperature: 0.0,
+                });
+                respuesta = respuestaJSON2Texto.data.choices[0].message.content.trim()
+            } else {
+                respuesta = "Lo siento, no pude encontrar información para responder a tu pregunta. " +
+                       "Puede que no exista información suficiente para hacerlo. O podrías necesitar ser más específico " +
+                       "(usa conceptos y nombres que sean lo más precisos posibles). ¿Puedo ayudarte en algo más?"
+            }
     } catch(error) {
-        throw error
+        if (error instanceof Neo4jError.Neo4jError) { // Contesta la respuesta original de la API, pueden ser saludos, despedidas, aclaraciones, etc.
+            if (sentencia.includes("MATCH") && sentencia.includes("RETURN")) {
+                respuesta = "Lo siento, parece que no soy capaz de responder a esa pregunta. O podrías necesitar ser más específico " +
+                       "(usa conceptos y nombres que sean lo más precisos posibles). ¿Puedo ayudarte en algo más?"
+            } else {
+                respuesta = sentencia.trim()
+            }
+        } else {
+            throw error
+        }
     }
+    params.respuesta = respuesta
+    let sentencia_guardar_pregunta = "MATCH (u:Usuario {usuarioID: $usuarioID})" +
+                                     "CREATE (u)-[:HACE]->(p:Pregunta {interrogante: $interrogante, sentenciaCypher: $sentenciaCypher, respuesta: $respuesta, "
+    if (params.informacionJSON) {
+        sentencia_guardar_pregunta += "informacionJSON: $informacionJSON, "
+    }
+    sentencia_guardar_pregunta += "fecha_hora: toString(datetime({timezone: 'America/Guayaquil'}))}) RETURN p"
+    const resultado_guardar_pregunta = await conexionNeo4j.ejecutarCypher(sentencia_guardar_pregunta, params)
+    return resultado_guardar_pregunta.records[0].get('p').properties.respuesta
+}
+
+const historialPreguntas = async (usuarioID, limite = 5, pagina = 1) => {
+    let params = {
+        limite: limite,
+        pagina: pagina
+    }
+    const validacion = await historialSchema.validarHistorial(params)
+    if (!validacion.valido) { 
+        return json = {
+            error: validacion.error.details[0].message.toString(),
+            codigo: 400
+        }
+    }
+    params.usuarioID = usuarioID
+    let sentencia = "MATCH (u:Usuario {usuarioID: $usuarioID})-[:HACE]->(p:Pregunta) " +
+                    "RETURN p ORDER BY p.fecha_hora DESC " +
+                    "SKIP toInteger($pagina) * toInteger($limite) - toInteger($limite) LIMIT toInteger($limite)"
+    const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
+    return resultado.records.map(record => record.get('p').properties)
 }
 
 module.exports = {
-    hacerPregunta
+    hacerPregunta,
+    historialPreguntas
 };
