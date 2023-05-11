@@ -2,7 +2,7 @@ const conexionNeo4j = require('../connection/conexionNeo4j');
 const { v4: uuidv4 } = require('uuid');
 const solicitudSustitucionSchema = require('../models/schemas/solicitudSustitucion');
 const juicioSugerenciaSchema = require('../models/schemas/juicioSugerencia');
-const historialSchema = require('../models/schemas/historial');
+const historialSustitucionesSchema = require('../models/schemas/historialSustituciones');
 
 const solicitarSustitucion = async (usuarioID, alimentoID, flexible = 'false') => {
     const validacion = await solicitudSustitucionSchema.validarSolicitudSustitucion({flexible: flexible})
@@ -135,12 +135,13 @@ const juzgarSugerencia = async (usuarioID, sustitucionID, alimentoID, juicio) =>
     }
 }
 
-const historialSugerencias = async (usuarioID, limite = 5, pagina = 1) => {
+const historialSustituciones = async (usuarioID, fecha, limite = 5, pagina = 1) => {
     let params = {
+        fecha: fecha,
         limite: limite,
         pagina: pagina
     }
-    const validacion = await historialSchema.validarHistorial(params)
+    const validacion = await historialSustitucionesSchema.validarHistorialSustituciones(params)
     if (!validacion.valido) { 
         return json = {
             error: validacion.error.details[0].message.toString(),
@@ -148,7 +149,7 @@ const historialSugerencias = async (usuarioID, limite = 5, pagina = 1) => {
         }
     }
     params.usuarioID = usuarioID
-    let sentencia = `MATCH (u:Usuario {usuarioID: $usuarioID})-[:REALIZA]->(s:Sustitucion) 
+    let sentencia = `MATCH (u:Usuario {usuarioID: $usuarioID})-[:REALIZA]->(s:Sustitucion) WHERE s.fecha_hora STARTS WITH $fecha
                     WITH s ORDER BY s.fecha_hora DESC 
                     SKIP toInteger($pagina) * toInteger($limite) - toInteger($limite) LIMIT toInteger($limite)
                     CALL {
@@ -175,5 +176,5 @@ const historialSugerencias = async (usuarioID, limite = 5, pagina = 1) => {
 module.exports = {
     solicitarSustitucion,
     juzgarSugerencia,
-    historialSugerencias
+    historialSustituciones
 };

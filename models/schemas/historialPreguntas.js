@@ -1,6 +1,6 @@
 const Joi = require('joi');
 
-const historialSchema = Joi.object({
+const historialPreguntasSchema = Joi.object({
     limite: Joi.number()
         .integer()
         .positive()
@@ -12,9 +12,9 @@ const historialSchema = Joi.object({
         .required(),
 })
 
-const validarHistorial = async (historial) => {
+const validarHistorialPreguntas = async (historialPreguntas) => {
     try {
-        await historialSchema.validateAsync(historial)
+        await historialPreguntasSchema.validateAsync(historialPreguntas)
         return json = {
             valido: true
         }
@@ -28,5 +28,5 @@ const validarHistorial = async (historial) => {
 }
 
 module.exports = {
-    validarHistorial
+    validarHistorialPreguntas
 };

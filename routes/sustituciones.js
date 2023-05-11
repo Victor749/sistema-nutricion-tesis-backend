@@ -36,7 +36,7 @@ router.post('/sugerencia/usuario/:usuarioID/sustitucion/:sustitucionID/alimento/
 /* GET historial de de sustituciones. */
 router.get('/historial/usuario/:usuarioID', async function(req, res) {
   try {
-    const resultado = await Sustitucion.historialSugerencias(req.params.usuarioID, req.query.limite, req.query.pagina)
+    const resultado = await Sustitucion.historialSustituciones(req.params.usuarioID, req.query.fecha, req.query.limite, req.query.pagina)
     if (resultado.codigo === 400)  {
       res.status(400).send(resultado.error)
     } else {
