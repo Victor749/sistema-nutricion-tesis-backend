@@ -2,7 +2,7 @@ const conexionNeo4j = require('../connection/conexionNeo4j');
 const Neo4jError =  require('neo4j-driver-core/lib/error.js');
 const { Configuration, OpenAIApi } = require("openai");
 const promptSchema = require('../models/schemas/prompt');
-const historialSchema = require('../models/schemas/historial');
+const historialPreguntasSchema = require('./schemas/historialPreguntas');
 
 const configuration = new Configuration({
     apiKey: process.env.OPENAI_API_KEY,
@@ -10,8 +10,7 @@ const configuration = new Configuration({
 
 const openai = new OpenAIApi(configuration);
 
-const entrenamientoTexto2Cypher = `
-Eres un asistente con la capacidad de generar consultas Cypher basadas en consultas Cypher de ejemplo.
+const entrenamientoTexto2Cypher = `Eres un asistente con la capacidad de generar consultas Cypher basadas en consultas Cypher de ejemplo.
 Las consultas de Cypher de ejemplo son:
 
 #¿Cuánto del nutriente azúcar hay en el alimento mango?; ¿Cuánta azúcar tiene un mango?
@@ -125,56 +124,91 @@ const hacerPregunta = async (usuarioID, prompt) => {
         }
     }
 
-    const params = {usuarioID: usuarioID, interrogante: prompt.pregunta.trim()}
-    let respuesta = ""
-
+    // Se especifica el mensaje de sistema para la conversion de lenguaje natural a Cypher
     let mensajesTexto2Cypher = []
     mensajesTexto2Cypher.push({ role: "system", content: entrenamientoTexto2Cypher })
-    mensajesTexto2Cypher.push({ role: "user", content: prompt.pregunta.trim() })
+
+    // Se carga como contexto las 3 ultimas preguntas del usuario y las sentencias Cypher o respuestas del asistente
+    const historial = await historialPreguntas(usuarioID, 3, 1)
+    historial.reverse().forEach((pregunta) => {
+        mensajesTexto2Cypher.push({ role: "user", content: pregunta.interrogante })
+        if (pregunta.sentenciaCypher) { 
+            mensajesTexto2Cypher.push({ role: "assistant", content: pregunta.sentenciaCypher })
+        } else { // Si no hay sentencia Cypher se carga la respuesta
+            mensajesTexto2Cypher.push({ role: "assistant", content: pregunta.respuesta })
+        }
+    })
+
+    // Parametros para guardar la pregunta en la base de datos
+    const params = {usuarioID: usuarioID, interrogante: prompt.pregunta}
+    // Respuesta que variara dependiendo lo que responda el modelo de chatCompletion
+    let respuesta = ""
+
+    // Se usa el metodo chatCompletion para obtener la sentencia Cypher a partir del mensaje actual del usuario
+    mensajesTexto2Cypher.push({ role: "user", content: prompt.pregunta })
     const respuestaTexto2Cypher = await openai.createChatCompletion({
         model: "gpt-3.5-turbo",
         messages: mensajesTexto2Cypher,
-        temperature: 0.0,
+        temperature: 0,
     });
-    const sentencia = respuestaTexto2Cypher.data.choices[0].message.content
-    params.sentenciaCypher = sentencia
-    console.log("\n" + "******* SENTENCIA *******" + "\n" + sentencia + "\n")
+    let sentencia = respuestaTexto2Cypher.data.choices[0].message.content
+
+    // Verifica si la respuesta incluye una sentencia Cypher
+    if (sentencia.includes("MATCH") && sentencia.includes("RETURN")) {
+        // El modelo a veces se disculpa o aclara algo en la primera linea. Si es el caso, esto se quita.
+        if (!(sentencia.split("\n")[0].includes("CALL") || sentencia.split("\n")[0].includes("MATCH"))) {
+            sentencia  = sentencia.slice(sentencia.indexOf("\n"))
+        }
+        // El modelo a veces encierra la consulta Cypher entre comillas triples. Si es el caso, se extrae solo la sentencia.
+        if (sentencia.includes("```")) {
+            sentencia  = sentencia.split("```")[1]
+        } 
+    }
 
     try {
+        // Se ejecuta la sentencia sobre la base de datos Neo4j.
         const resultado = await conexionNeo4j.ejecutarCypher(sentencia)
-            if (resultado.records[0]) {
-                const informacion = JSON.stringify(resultado.records[0].get('resultado'))
-                params.informacionJSON = informacion
-                console.log("\n" + "******* RESULTADO *******" + "\n" + informacion + "\n")
-                let mensajesJSON2Texto = []
-                mensajesJSON2Texto.push({ role: "system", content: entrenamientoJSON2Texto })
-                mensajesJSON2Texto.push({ role: "user", content: informacion})
-                const respuestaJSON2Texto = await openai.createChatCompletion({
-                    model: "gpt-3.5-turbo",
-                    messages: mensajesJSON2Texto,
-                    temperature: 0.0,
-                });
-                respuesta = respuestaJSON2Texto.data.choices[0].message.content.trim()
-            } else {
-                respuesta = "Lo siento, no pude encontrar información para responder a tu pregunta. " +
-                       "Puede que no exista información suficiente para hacerlo. O podrías necesitar ser más específico " +
-                       "(usa conceptos y nombres que sean lo más precisos posibles). ¿Puedo ayudarte en algo más?"
-            }
+        if (resultado.records[0]) {
+            // Se pasa el resultado JSON a una cadena.
+            const informacion = JSON.stringify(resultado.records[0].get('resultado'))
+            params.informacionJSON = informacion
+
+            // Se utiliza el metodo chatCompletion para obtener texto en lenguaje natural a partir de JSON
+            let mensajesJSON2Texto = []
+            mensajesJSON2Texto.push({ role: "system", content: entrenamientoJSON2Texto })
+            mensajesJSON2Texto.push({ role: "user", content: informacion})
+            const respuestaJSON2Texto = await openai.createChatCompletion({
+                model: "gpt-3.5-turbo",
+                messages: mensajesJSON2Texto,
+                temperature: 0,
+            });
+            respuesta = respuestaJSON2Texto.data.choices[0].message.content
+        } else { // Caso en el que no se devuelve nada de la base de datos
+            respuesta = "Lo siento, no pude encontrar información para responder a tu pregunta. " +
+                    "Puede que no exista información suficiente para hacerlo. O podrías necesitar ser más específico " +
+                    "(usa conceptos y nombres que sean lo más precisos posibles). ¿Puedo ayudarte en algo más?"
+        }
+        params.sentenciaCypher = sentencia
     } catch(error) {
-        if (error instanceof Neo4jError.Neo4jError) { // Contesta la respuesta original de la API, pueden ser saludos, despedidas, aclaraciones, etc.
-            if (sentencia.includes("MATCH") && sentencia.includes("RETURN")) {
+        if (error instanceof Neo4jError.Neo4jError) { 
+            if (sentencia.includes("MATCH") && sentencia.includes("RETURN")) { // Caso en el que se crea una sentencia Cypher que no es valida
                 respuesta = "Lo siento, parece que no soy capaz de responder a esa pregunta. O podrías necesitar ser más específico " +
                        "(usa conceptos y nombres que sean lo más precisos posibles). ¿Puedo ayudarte en algo más?"
-            } else {
-                respuesta = sentencia.trim()
+            } else { // Contesta la respuesta original de la API, pueden ser saludos, despedidas, aclaraciones, etc.
+                respuesta = sentencia
             }
         } else {
             throw error
         }
     }
+
+    //Se guarda la pregunta en la base de datos.
     params.respuesta = respuesta
     let sentencia_guardar_pregunta = "MATCH (u:Usuario {usuarioID: $usuarioID})" +
-                                     "CREATE (u)-[:HACE]->(p:Pregunta {interrogante: $interrogante, sentenciaCypher: $sentenciaCypher, respuesta: $respuesta, "
+                                     "CREATE (u)-[:HACE]->(p:Pregunta {interrogante: $interrogante, respuesta: $respuesta, "
+    if (params.sentenciaCypher) {
+        sentencia_guardar_pregunta += "sentenciaCypher: $sentenciaCypher, " 
+    }
     if (params.informacionJSON) {
         sentencia_guardar_pregunta += "informacionJSON: $informacionJSON, "
     }
@@ -188,7 +222,7 @@ const historialPreguntas = async (usuarioID, limite = 5, pagina = 1) => {
         limite: limite,
         pagina: pagina
     }
-    const validacion = await historialSchema.validarHistorial(params)
+    const validacion = await historialPreguntasSchema.validarHistorialPreguntas(params)
     if (!validacion.valido) { 
         return json = {
             error: validacion.error.details[0].message.toString(),
