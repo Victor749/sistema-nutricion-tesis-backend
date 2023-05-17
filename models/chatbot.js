@@ -102,9 +102,8 @@ WITH a, collect(a2.nombre) as sugerencias
 RETURN {alimento_a_sustituir: {nombre: a.nombre, alimentoID: a.alimentoID}, sugerencias: sugerencias} as resultado
 
 No respondas con ninguna explicación o cualquier otra información, excepto la consulta Cypher.
-Nunca te disculpes y genera estrictamente declaraciones Cypher basadas en los ejemplos proporcionados.
-No proporciones sentencias Cypher que no se puedan deducir de los ejemplos.
-Informa al usuario cuando no puedas inferir la sentencia Cypher debido a la falta de contexto de la conversación e indica cuál es el contexto faltante.`
+Nunca te disculpes y genera estrictamente consultas Cypher basadas en los ejemplos proporcionados.
+No proporciones consultas Cypher que no se puedan deducir de los ejemplos.`
 
 const entrenamientoJSON2Texto = `Eres un asistente que ayuda a generar texto para formar respuestas agradables y comprensibles para los humanos.
 El mensaje más reciente contiene la información, y debes generar una respuesta legible por humanos basada en la información proporcionada.
@@ -150,6 +149,7 @@ const hacerPregunta = async (usuarioID, prompt) => {
     const respuestaTexto2Cypher = await openai.createChatCompletion({
         model: "gpt-3.5-turbo",
         messages: mensajesTexto2Cypher,
+        temperature: 0,
         top_p: 1,
     });
     let sentencia = respuestaTexto2Cypher.data.choices[0].message.content
@@ -188,6 +188,7 @@ const hacerPregunta = async (usuarioID, prompt) => {
                 const respuestaJSON2Texto = await openai.createChatCompletion({
                     model: "gpt-3.5-turbo",
                     messages: mensajesJSON2Texto,
+                    temperature: 0,
                     top_p: 1,
                 });
                 respuesta = respuestaJSON2Texto.data.choices[0].message.content.toString().trim() 
@@ -211,6 +212,13 @@ const hacerPregunta = async (usuarioID, prompt) => {
         }
     }
 
+    // Si se solicito una sustitucion se agregan los parametros necesarios para guardar en el historial
+    // (Id del alimento y boolean true de sustitucion)
+    if (sustitucion) {
+        params.sustitucion = sustitucion
+        params.alimentoID = alimentoID
+    }
+
     //Se guarda la pregunta en la base de datos.
     params.respuesta = respuesta
     let sentencia_guardar_pregunta = "MATCH (u:Usuario {usuarioID: $usuarioID})" +
@@ -221,10 +229,16 @@ const hacerPregunta = async (usuarioID, prompt) => {
     if (params.informacionJSON) {
         sentencia_guardar_pregunta += "informacionJSON: $informacionJSON, "
     }
+    if (params.sustitucion) {
+        sentencia_guardar_pregunta += "sustitucion: $sustitucion, "
+    }
+    if (params.alimentoID) {
+        sentencia_guardar_pregunta += "alimentoID: $alimentoID, "
+    }
     sentencia_guardar_pregunta += "fecha_hora: toString(datetime({timezone: 'America/Guayaquil'}))}) RETURN p"
     const resultado_guardar_pregunta = await conexionNeo4j.ejecutarCypher(sentencia_guardar_pregunta, params)
 
-    // Si se solicito una sustitucion se responde en un formato JSON para indicar el ID del alimento sobre el cual
+    // Si se solicito una sustitucion se responde adjuntando el boolean true de sustitucion y el ID del alimento sobre el cual
     // se debe hacer la secuencia de sustitucion
     if (sustitucion) {
         return json = {
@@ -233,7 +247,9 @@ const hacerPregunta = async (usuarioID, prompt) => {
             alimentoID: alimentoID
         }
     }
-    return resultado_guardar_pregunta.records[0].get('p').properties.respuesta
+    return json = {
+        texto: resultado_guardar_pregunta.records[0].get('p').properties.respuesta
+    }
 }
 
 const historialPreguntas = async (usuarioID, limite = 5, pagina = 1) => {

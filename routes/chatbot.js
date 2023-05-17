@@ -14,7 +14,7 @@ router.post('/usuario/:usuarioID', async function(req, res) {
         }
     } catch (error) {
         debug(error)
-        res.status(500).send('Mil disculpas, ocurrió algo inesperado. Error en el servidor.')
+        res.status(500).send('Error en el servidor.')
     }
 });
 
