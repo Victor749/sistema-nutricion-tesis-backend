@@ -29,11 +29,10 @@ router.get('/buscar/', async function(req, res) {
   }
 });
 
-/* GET buscar filtrar y ordenar alimentos por distintos atributos. */
-router.get('/filtrarYOrdenar/', async function(req, res) {
+/* POST filtrar y ordenar alimentos por distintos atributos. */
+router.post('/filtrarYOrdenar/', async function(req, res) {
   try {
-    const resultado = await Alimento.filtrarYOrdenar(req.query.filtro, req.query.valorFiltro, req.query.orden, 
-                                                    req.query.ordenSentido, req.query.limite, req.query.pagina)
+    const resultado = await Alimento.filtrarYOrdenar(req.body, req.query.orden, req.query.ordenSentido, req.query.limite, req.query.pagina)
     if (resultado.codigo === 400)  {
       res.status(400).send(resultado.error)
     } else {

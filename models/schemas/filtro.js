@@ -1,12 +1,15 @@
 const Joi = require('joi');
 
 const filtroSchema = Joi.object({
-    filtro: Joi.string()
-        .valid('categoria_id', 'marca_id', 'clasificacion_nova'),
-
-    valorFiltro: Joi.number()
-        .integer()
-        .positive(),
+    filtros: Joi.array()
+        .min(1)
+        .items(
+            Joi.object().keys({
+                tipo: Joi.string().valid('categoria_id', 'marca_id', 'clasificacion_nova').required(),
+                valores: Joi.array().min(1).items(Joi.number().integer().positive()).unique().required(),
+            })
+        )
+        .unique((a, b) => a.tipo === b.tipo),
 
     orden: Joi.string()
         .valid('nombre', 'clasificacion_nova'),
@@ -24,7 +27,6 @@ const filtroSchema = Joi.object({
         .positive()
         .required(),
 })
-    .with('filtro', 'valorFiltro')
     .with('orden', 'ordenSentido')
 
 const validarFiltro = async (filtro) => {

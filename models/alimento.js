@@ -31,10 +31,9 @@ const buscar = async (cadenaBusqueda, limite = 10, pagina = 1) => {
     return resultado.records.map(record => record.get('a').properties)
 }
 
-const filtrarYOrdenar = async (filtro, valorFiltro, orden, ordenSentido, limite = 10, pagina = 1) => {
+const filtrarYOrdenar = async (bodyFiltros, orden, ordenSentido, limite = 10, pagina = 1) => {
     let params = {
-        filtro: filtro,
-        valorFiltro: valorFiltro,
+        filtros: bodyFiltros.filtros,
         orden: orden,
         ordenSentido: ordenSentido,
         limite: limite,
@@ -48,9 +47,20 @@ const filtrarYOrdenar = async (filtro, valorFiltro, orden, ordenSentido, limite 
         }
     }
     let sentencia = 'MATCH (a:Alimento)'
-    if (params.filtro) {sentencia += 'WHERE a.' + `${params.filtro}` +  ' = toInteger($valorFiltro)'}
+    if (params.filtros) {
+        let array_filtros = params.filtros
+        delete params.filtros
+        array_filtros.forEach((filtro) => {
+            params[filtro.tipo] = filtro.valores
+        });
+        sentencia += 'WHERE '
+        array_filtros.forEach((filtro, indice, array_filtros) => {
+            sentencia += `a.${filtro.tipo} IN $${filtro.tipo} `
+            if (indice !== array_filtros.length - 1) {sentencia += ' AND '}
+        });
+    }
     sentencia += 'RETURN a '
-    if (params.orden) {sentencia += 'ORDER BY a.' + `${params.orden} ${params.ordenSentido} `}
+    if (params.orden) {sentencia += `ORDER BY a.${params.orden} ${params.ordenSentido} `}
     sentencia += 'SKIP toInteger($pagina) * toInteger($limite) - toInteger($limite) LIMIT toInteger($limite)'
     const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
     return resultado.records.map(record => record.get('a').properties)
