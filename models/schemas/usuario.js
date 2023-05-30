@@ -18,29 +18,55 @@ const usuarioSchema = Joi.object({
         .required(),
 
     sexo: Joi.string()
-        .valid('Masculino', 'Femenino')
+        .valid('Hombre', 'Mujer')
         .required(),
 
     anio_nacimiento: Joi.number()
         .integer()
         .min(1900)
-        .max(2013)
+        .max(2005)
         .required(),
 
-    peso: Joi.number()
+    peso: Joi.number() // kg
         .integer()
         .min(2)
         .max(635)
         .required(),
 
-    estatura: Joi.number()
+    estatura: Joi.number() // cm
         .integer()
         .min(50)
         .max(272)
         .required(),
+    
+    cintura: Joi.number() // cm
+        .integer()
+        .min(38)
+        .max(300)
+        .required(),
 
-    actividad_fisica: Joi.string()
-        .valid('Ninguna', 'Moderada', 'Alta')
+    actividad_fisica_diaria: Joi.string()
+        .valid('Sí', 'No')
+        .required(),
+    
+    nivel_actividad_fisica: Joi.string()
+        .valid('Sedentaria', 'Ligera', 'Moderada', 'Alta', 'Extrema')
+        .required(),
+
+    frecuencia_consumo_frutas_verduras_cereales: Joi.string()
+        .valid('Cada día', 'No todos los días')
+        .required(),
+
+    medicacion_hipertension: Joi.string()
+        .valid('Sí', 'No')
+        .required(),
+
+    alta_glucosa: Joi.string()
+        .valid('Sí', 'No')
+        .required(),
+    
+    familiar_con_diabetes: Joi.string()
+        .valid('No', 'Sí: abuelos, tía, tío o primo hermano', 'Sí: padres, hermano, hermana o hijo')
         .required(),
 })
 
