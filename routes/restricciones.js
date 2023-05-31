@@ -33,6 +33,23 @@ router.post('/restriccionAlimento/usuario/:usuarioID/alimento/:alimentoID', asyn
     }
 })
 
+/* POST reescribir restricciones alimenticia (alimentos). */
+router.post('/restriccionAlimento/reescribir/usuario/:usuarioID', async function (req, res) {
+    try {
+        const resultado = await RestriccionAlimento.reescribirRestriccionesAlimentos(req.params.usuarioID, req.body)
+        if (resultado.codigo === 400)  {
+            res.status(400).send(resultado.error)
+        } else if (resultado.codigo === 404)  {
+            res.status(404).send(resultado.error)
+        } else {
+            res.status(201).json(resultado)
+        }
+    } catch (error) {
+        debug(error)
+        res.status(500).send('Error en el servidor.')
+    }
+})
+
 /* DELETE quitar restriccion alimenticia (alimento). */
 router.delete('/restriccionAlimento/usuario/:usuarioID/alimento/:alimentoID', async function (req, res) {
     try {
@@ -65,6 +82,23 @@ router.get('/restriccionCategoria/usuario/:usuarioID', async function(req, res) 
 router.post('/restriccionCategoria/usuario/:usuarioID', async function (req, res) {
     try {
         const resultado = await RestriccionCategoria.agregarRestriccionesCategorias(req.params.usuarioID, req.body)
+        if (resultado.codigo === 400)  {
+            res.status(400).send(resultado.error)
+        } else if (resultado.codigo === 404)  {
+            res.status(404).send(resultado.error)
+        } else {
+            res.status(201).json(resultado)
+        }
+    } catch (error) {
+        debug(error)
+        res.status(500).send('Error en el servidor.')
+    }
+})
+
+/* POST reescribir restricciones alimenticia (categorias). */
+router.post('/restriccionCategoria/reescribir/usuario/:usuarioID', async function (req, res) {
+    try {
+        const resultado = await RestriccionCategoria.reescribirRestriccionesCategorias(req.params.usuarioID, req.body)
         if (resultado.codigo === 400)  {
             res.status(400).send(resultado.error)
         } else if (resultado.codigo === 404)  {
@@ -127,6 +161,23 @@ router.post('/restriccionEtiqueta/verificar', async function (req, res) {
 router.post('/restriccionEtiqueta/usuario/:usuarioID', async function (req, res) {
     try {
         const resultado = await RestriccionEtiqueta.agregarRestriccionesEtiquetas(req.params.usuarioID, req.body)
+        if (resultado.codigo === 400)  {
+            res.status(400).send(resultado.error)
+        } else if (resultado.codigo === 404)  {
+            res.status(404).send(resultado.error)
+        } else {
+            res.status(201).json(resultado)
+        }
+    } catch (error) {
+        debug(error)
+        res.status(500).send('Error en el servidor.')
+    }
+})
+
+/* POST reescribir restricciones alimenticia (etiquetas). */
+router.post('/restriccionEtiqueta/reescribir/usuario/:usuarioID', async function (req, res) {
+    try {
+        const resultado = await RestriccionEtiqueta.reescribirRestriccionesEtiquetas(req.params.usuarioID, req.body)
         if (resultado.codigo === 400)  {
             res.status(400).send(resultado.error)
         } else if (resultado.codigo === 404)  {

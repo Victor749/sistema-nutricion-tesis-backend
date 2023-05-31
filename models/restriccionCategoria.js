@@ -38,6 +38,32 @@ const agregarRestriccionesCategorias = async (usuarioID, restricciones) => {
     })
 }
 
+const reescribirRestriccionesCategorias = async (usuarioID, restricciones) => {
+    const validacion = await restriccionesCategoriasSchema.validarRestriccionesCategorias(restricciones)
+    if (!validacion.valido) { 
+        return json = {
+            error: validacion.error.details[0].message.toString(),
+            codigo: 400
+        }
+    }
+    let sentencia = 'CALL {MATCH (u:Usuario {usuarioID: $usuarioID})-[r:RESTRINGE]->(c:Categoria) DELETE r}' +
+                    'UNWIND $restriccionesCategorias as restriccion ' +
+                    'MATCH (u:Usuario {usuarioID: $usuarioID}), ' +
+                    '(c:Categoria {categoriaID: restriccion.categoriaID}) ' +
+                    'MERGE (u)-[r:RESTRINGE]->(c) ' +
+                    'ON CREATE SET r.tipo = restriccion.tipo ' +
+                    'ON MATCH SET r.tipo = restriccion.tipo ' +
+                    'RETURN r, c'
+    let params = restricciones
+    params.usuarioID = usuarioID
+    const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
+    return resultado.records.map(record => json = {
+        categoriaID: record.get('c').properties.categoriaID,
+        nombre: record.get('c').properties.nombre,
+        tipo: record.get('r').properties.tipo
+    })
+}
+
 const quitarRestriccionCategoria = async (usuarioID, categoriaID) => {
     let sentencia = 'MATCH (u:Usuario {usuarioID: $usuarioID})-[r:RESTRINGE]->' +
                     '(c:Categoria {categoriaID: toInteger($categoriaID)})' +
@@ -59,5 +85,6 @@ const quitarRestriccionCategoria = async (usuarioID, categoriaID) => {
 module.exports = {
     verRestriccionesCategorias,
     agregarRestriccionesCategorias,
+    reescribirRestriccionesCategorias,
     quitarRestriccionCategoria
 };

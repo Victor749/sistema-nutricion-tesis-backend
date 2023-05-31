@@ -1,5 +1,6 @@
 const conexionNeo4j = require('../connection/conexionNeo4j');
 const restriccionAlimentoSchema = require('./schemas/restriccionAlimento');
+const restriccionesAlimentosSchema = require('./schemas/restriccionesAlimentos');
 
 const verRestriccionesAlimento = async (usuarioID) => {
     let sentencia = 'MATCH (u:Usuario {usuarioID: $usuarioID})-[r:RESTRINGE]->(a:Alimento) ' +
@@ -45,6 +46,32 @@ const agregarRestriccionAlimento = async (usuarioID, alimentoID, restriccion) =>
     }
 }
 
+const reescribirRestriccionesAlimentos = async (usuarioID, restricciones) => {
+    const validacion = await restriccionesAlimentosSchema.validarRestriccionesAlimentos(restricciones)
+    if (!validacion.valido) { 
+        return json = {
+            error: validacion.error.details[0].message.toString(),
+            codigo: 400
+        }
+    }
+    let sentencia = 'CALL {MATCH (u:Usuario {usuarioID: $usuarioID})-[r:RESTRINGE]->(a:Alimento) DELETE r}' +
+                    'UNWIND $restriccionesAlimentos as restriccion ' +
+                    'MATCH (u:Usuario {usuarioID: $usuarioID}), ' +
+                    '(a:Alimento {alimentoID: restriccion.alimentoID}) ' +
+                    'MERGE (u)-[r:RESTRINGE]->(a) ' +
+                    'ON CREATE SET r.tipo = restriccion.tipo ' +
+                    'ON MATCH SET r.tipo = restriccion.tipo ' +
+                    'RETURN r, a'
+    let params = restricciones
+    params.usuarioID = usuarioID
+    const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
+    return resultado.records.map(record => json = {
+        alimentoID: record.get('a').properties.alimentoID,
+        nombre: record.get('a').properties.nombre,
+        tipo: record.get('r').properties.tipo
+    })
+}
+
 const quitarRestriccionAlimento = async (usuarioID, alimentoID) => {
     let sentencia = 'MATCH (u:Usuario {usuarioID: $usuarioID})-[r:RESTRINGE]->' +
                     '(a:Alimento {alimentoID: toInteger($alimentoID)})' +
@@ -66,5 +93,6 @@ const quitarRestriccionAlimento = async (usuarioID, alimentoID) => {
 module.exports = {
     verRestriccionesAlimento,
     agregarRestriccionAlimento, 
+    reescribirRestriccionesAlimentos,
     quitarRestriccionAlimento
 };
