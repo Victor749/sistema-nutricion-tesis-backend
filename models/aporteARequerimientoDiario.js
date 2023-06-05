@@ -88,7 +88,7 @@ const calcularAporteAlimento = async (alimentoID, referencia) => { // Estimacion
         let unidad = record.get('u').properties.nombre
         let valor = record.get('r').properties.valor
         macros[nutriente] = {}
-        macros[nutriente]['valor'] = parseInt(valor)
+        macros[nutriente]['valor'] = valor.toFixed(2)
         macros[nutriente]['unidad'] = unidad
     })
     return macros
@@ -114,7 +114,7 @@ const calcularAporteARequerimientoDiario = async (usuarioID, alimentoID) => {
         const macros_usuario = requerimientos.macros
         const nutrientes = requerimientos.nutrientes
         const macros_alimento = await calcularAporteAlimento(alimentoID, referencia)
-        const en_referencia_a = {referencia: referencia}
+        const en_referencia_a = {referencia: referencia, alimentoID: alimento.alimentoID, alimento: alimento.nombre}
         if (referencia !== '100 g') {
             if (alimento.tam_porcion && unidad_porcion) {
                 en_referencia_a['porcion'] = alimento.tam_porcion
@@ -131,9 +131,9 @@ const calcularAporteARequerimientoDiario = async (usuarioID, alimentoID) => {
         nutrientes.forEach(nutriente => {
             if (macros_alimento[nutriente] && (macros_usuario[nutriente]['unidad'] === macros_alimento[nutriente]['unidad']))  {
                 aporte['nutrientes'][nutriente] = {}
-                aporte['nutrientes'][nutriente]['porcentaje_aporte'] = parseInt((macros_alimento[nutriente]['valor'] / macros_usuario[nutriente]['valor']) * 100)
+                aporte['nutrientes'][nutriente]['porcentaje_aporte'] = parseFloat(((macros_alimento[nutriente]['valor'] / macros_usuario[nutriente]['valor']) * 100).toFixed(2))
                 aporte['nutrientes'][nutriente]['requerimiento_usuario'] = macros_usuario[nutriente]['valor']
-                aporte['nutrientes'][nutriente]['aporte_alimento'] = macros_alimento[nutriente]['valor']
+                aporte['nutrientes'][nutriente]['aporte_alimento'] = parseFloat(macros_alimento[nutriente]['valor'])
                 aporte['nutrientes'][nutriente]['unidad'] = macros_alimento[nutriente]['unidad']
             }
         })
