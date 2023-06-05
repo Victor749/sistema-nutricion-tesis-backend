@@ -120,7 +120,9 @@ const juzgarSugerencia = async (usuarioID, sustitucionID, alimentoID, juicio) =>
         recomendaciones.push(...recomendaciones_alimenticias)
         const mensaje_recomendacion = recomendaciones.join('\n')
         params.mensaje_recomendacion = mensaje_recomendacion
-        sentencia += "CREATE (s)-[r1:SUGIERE {fecha_hora: toString(datetime({timezone: 'America/Guayaquil'})), aceptado: toBoolean($aceptado), mensaje_recomendacion: $mensaje_recomendacion}]->(a)"
+        params.aporte_nutricional = juicio.aporte_nutricional
+        sentencia += "CREATE (s)-[r1:SUGIERE {fecha_hora: toString(datetime({timezone: 'America/Guayaquil'})), aceptado: toBoolean($aceptado), mensaje_recomendacion: $mensaje_recomendacion, " + 
+                     "aporte_nutricional: $aporte_nutricional}]->(a)"
     } else {
         sentencia += "CREATE (s)-[r1:SUGIERE {fecha_hora: toString(datetime({timezone: 'America/Guayaquil'})), aceptado: toBoolean($aceptado)}]->(a)"
     }

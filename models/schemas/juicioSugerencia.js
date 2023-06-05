@@ -4,6 +4,12 @@ const juicioSugerenciaSchema = Joi.object({
     aceptado: Joi.string()
         .valid('true', 'false')
         .required(),
+
+    aporte_nutricional: Joi.when('aceptado', {
+        is: 'true',
+        then: Joi.string()
+        .required()
+    }),   
 })
 
 const validarJuicioSugerencia = async (juicioSugerencia) => {
