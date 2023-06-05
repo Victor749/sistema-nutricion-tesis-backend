@@ -3,6 +3,8 @@ const { v4: uuidv4 } = require('uuid');
 const solicitudSustitucionSchema = require('../models/schemas/solicitudSustitucion');
 const juicioSugerenciaSchema = require('../models/schemas/juicioSugerencia');
 const historialSustitucionesSchema = require('../models/schemas/historialSustituciones');
+const RecomendacionGeneral = require('../models/recomendacionGeneral');
+const RecomendacionAlimenticia = require('../models/recomendacionAlimenticia');
 
 const solicitarSustitucion = async (usuarioID, alimentoID, flexible = 'false') => {
     const validacion = await solicitudSustitucionSchema.validarSolicitudSustitucion({flexible: flexible})
@@ -109,11 +111,14 @@ const juzgarSugerencia = async (usuarioID, sustitucionID, alimentoID, juicio) =>
     }
 
     let resultado = {}
-    let mensaje_recomendacion = "Aquí va un mensaje de recomendacion en caso de que el usuario acepte la sugerencia."
 
     let sentencia = "MATCH (u:Usuario {usuarioID: $usuarioID})-[r:REALIZA]->(s:Sustitucion {sustitucionID: $sustitucionID}), (a:Alimento {alimentoID: toInteger($alimentoID)})"             
     const params = {usuarioID: usuarioID, alimentoID: alimentoID, sustitucionID: sustitucionID, aceptado: juicio.aceptado}
     if (juicio.aceptado === "true") {
+        const recomendaciones = await RecomendacionGeneral.obtenerRecomendacionesGenerales(usuarioID)
+        const recomendaciones_alimenticias = await RecomendacionAlimenticia.obtenerRecomendacionesAlimenticias(alimentoID)
+        recomendaciones.push(...recomendaciones_alimenticias)
+        const mensaje_recomendacion = recomendaciones.join('\n')
         params.mensaje_recomendacion = mensaje_recomendacion
         sentencia += "CREATE (s)-[r1:SUGIERE {fecha_hora: toString(datetime({timezone: 'America/Guayaquil'})), aceptado: toBoolean($aceptado), mensaje_recomendacion: $mensaje_recomendacion}]->(a)"
     } else {
