@@ -17,6 +17,7 @@ var unidadesRouter = require('./routes/unidades');
 var alimentosRouter = require('./routes/alimentos');
 var sustitucionesRouter = require('./routes/sustituciones');
 var chatbotRouter = require('./routes/chatbot');
+var aportesARequerimientosDiariosRouter = require('./routes/aportesARequerimientosDiarios');
 
 var app = express();
 
@@ -43,6 +44,7 @@ app.use('/unidades', unidadesRouter);
 app.use('/alimentos', alimentosRouter);
 app.use('/sustituciones', sustitucionesRouter);
 app.use('/chatbot', chatbotRouter);
+app.use('/aportes', aportesARequerimientosDiariosRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
