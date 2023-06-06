@@ -90,9 +90,28 @@ const quitarRestriccionAlimento = async (usuarioID, alimentoID) => {
     }
 }
 
+const contarRestriccionesAlimento = async (usuarioID) => {
+    let sentencia = `CALL {
+                        MATCH (u:Usuario {usuarioID: $usuarioID})-[r:RESTRINGE {tipo: 'Alergia'}]->(a:Alimento) 
+                        RETURN count(a) as alimentos_restringidos_por_alergia
+                    }
+                    CALL {
+                        MATCH (u:Usuario {usuarioID: $usuarioID})-[r:RESTRINGE {tipo: 'Gusto'}]->(a:Alimento) 
+                        RETURN count(a) as alimentos_restringidos_por_gusto
+                    }
+                    RETURN alimentos_restringidos_por_alergia, alimentos_restringidos_por_gusto`
+    let params = {usuarioID: usuarioID}
+    const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
+    return {
+        alimentos_restringidos_por_alergia: resultado.records[0].get('alimentos_restringidos_por_alergia'),
+        alimentos_restringidos_por_gusto: resultado.records[0].get('alimentos_restringidos_por_gusto') 
+    }
+}
+
 module.exports = {
     verRestriccionesAlimento,
     agregarRestriccionAlimento, 
     reescribirRestriccionesAlimentos,
-    quitarRestriccionAlimento
+    quitarRestriccionAlimento,
+    contarRestriccionesAlimento
 };

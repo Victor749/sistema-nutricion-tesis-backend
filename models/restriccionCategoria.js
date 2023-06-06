@@ -82,9 +82,28 @@ const quitarRestriccionCategoria = async (usuarioID, categoriaID) => {
     }
 }
 
+const contarRestriccionesCategoria = async (usuarioID) => {
+    let sentencia = `CALL {
+                        MATCH (u:Usuario {usuarioID: $usuarioID})-[r:RESTRINGE {tipo: 'Alergia'}]->(c:Categoria) 
+                        RETURN count(c) as categorias_restringidas_por_alergia
+                    }
+                    CALL {
+                        MATCH (u:Usuario {usuarioID: $usuarioID})-[r:RESTRINGE {tipo: 'Gusto'}]->(c:Categoria) 
+                        RETURN count(c) as categorias_restringidas_por_gusto
+                    }
+                    RETURN categorias_restringidas_por_alergia, categorias_restringidas_por_gusto`
+    let params = {usuarioID: usuarioID}
+    const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
+    return {
+        categorias_restringidas_por_alergia: resultado.records[0].get('categorias_restringidas_por_alergia'),
+        categorias_restringidas_por_gusto: resultado.records[0].get('categorias_restringidas_por_gusto') 
+    }
+}
+
 module.exports = {
     verRestriccionesCategorias,
     agregarRestriccionesCategorias,
     reescribirRestriccionesCategorias,
-    quitarRestriccionCategoria
+    quitarRestriccionCategoria,
+    contarRestriccionesCategoria
 };

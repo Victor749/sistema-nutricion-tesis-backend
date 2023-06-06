@@ -67,6 +67,17 @@ router.delete('/restriccionAlimento/usuario/:usuarioID/alimento/:alimentoID', as
     }
 })
 
+/* GET contar restricciones (alimentos). */
+router.get('/restriccionAlimento/contar/usuario/:usuarioID', async function(req, res) {
+    try {
+      const resultado = await RestriccionAlimento.contarRestriccionesAlimento(req.params.usuarioID)
+      res.status(200).json(resultado)
+    } catch (error) {
+      debug(error)
+      res.status(500).send('Error en el servidor.')
+    }
+});
+
 /* GET lista de restricciones alimenticias de un usuario (categoria). */
 router.get('/restriccionCategoria/usuario/:usuarioID', async function(req, res) {
     try {
@@ -128,6 +139,17 @@ router.delete('/restriccionCategoria/usuario/:usuarioID/categoria/:categoriaID',
         res.status(500).send('Error en el servidor.')
     }
 })
+
+/* GET contar restricciones (categorias). */
+router.get('/restriccionCategoria/contar/usuario/:usuarioID', async function(req, res) {
+    try {
+      const resultado = await RestriccionCategoria.contarRestriccionesCategoria(req.params.usuarioID)
+      res.status(200).json(resultado)
+    } catch (error) {
+      debug(error)
+      res.status(500).send('Error en el servidor.')
+    }
+});
 
 /* GET lista de restricciones alimenticias de un usuario (etiquetas). */
 router.get('/restriccionEtiqueta/usuario/:usuarioID', async function(req, res) {
@@ -207,5 +229,16 @@ router.delete('/restriccionEtiqueta/usuario/:usuarioID/etiqueta/:etiqueta', asyn
         res.status(500).send('Error en el servidor.')
     }
 })
+
+/* GET contar restricciones (etiquetas). */
+router.get('/restriccionEtiqueta/contar/usuario/:usuarioID', async function(req, res) {
+    try {
+      const resultado = await RestriccionEtiqueta.contarRestriccionesEtiqueta(req.params.usuarioID)
+      res.status(200).json(resultado)
+    } catch (error) {
+      debug(error)
+      res.status(500).send('Error en el servidor.')
+    }
+});
 
 module.exports = router;
