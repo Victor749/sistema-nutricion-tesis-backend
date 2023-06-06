@@ -50,4 +50,15 @@ router.get('/historial/usuario/:usuarioID', async function(req, res) {
   }
 });
 
+/* GET numero de sustituciones exitosas hoy. */
+router.get('/cuentaSustitucionesExitosasHoy/usuario/:usuarioID', async function(req, res) {
+  try {
+    const resultado = await Sustitucion.cuentaSustitucionesExitosasHoy(req.params.usuarioID)
+    res.status(200).json(resultado)
+  } catch (error) {
+    debug(error)
+    res.status(500).send('Error en el servidor.')
+  }
+});
+
 module.exports = router;

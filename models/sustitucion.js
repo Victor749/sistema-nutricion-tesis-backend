@@ -180,8 +180,18 @@ const historialSustituciones = async (usuarioID, fecha, limite = 5, pagina = 1) 
     })
 }
 
+const cuentaSustitucionesExitosasHoy = async (usuarioID) => {
+    let params = {usuarioID: usuarioID}
+    let sentencia = `MATCH (:Usuario {usuarioID: $usuarioID})-[:REALIZA]->(s:Sustitucion)-[r:SUGIERE {aceptado: true}]->(:Alimento) 
+                    WHERE r.fecha_hora STARTS WITH toString(date(datetime({timezone: 'America/Guayaquil'}))) WITH DISTINCT s 
+                    RETURN count(s) as cuenta`
+    const resultado = await conexionNeo4j.ejecutarCypher(sentencia, params)
+    return {sustituciones_exitosas_hoy: resultado.records[0].get('cuenta')}
+}
+
 module.exports = {
     solicitarSustitucion,
     juzgarSugerencia,
-    historialSustituciones
+    historialSustituciones,
+    cuentaSustitucionesExitosasHoy
 };
