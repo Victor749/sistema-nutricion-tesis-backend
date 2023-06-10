@@ -85,7 +85,7 @@ const solicitarSustitucion = async (usuarioID, alimentoID, flexible = 'false') =
                                     OPTIONAL MATCH p=(a2)-[:CONTIENE]->(i:Ingrediente WHERE i.descripcion IN ingredientes_restringidos)
                                     WITH r, a2, size(collect(p)) as num_ingredientes_restringidos
                                     MATCH (a2) WHERE num_ingredientes_restringidos = 0
-                                    RETURN a2 ORDER BY r.distancia`
+                                    RETURN a2 ORDER BY a2.clasificacion_nova, r.distancia`
 
         const params_sugerencias = {alimentoID: alimentoID, usuarioID: usuarioID}
         const resultado_sugerencias = await transaccion.txc.run(sentencia_sugerencias, params_sugerencias)
