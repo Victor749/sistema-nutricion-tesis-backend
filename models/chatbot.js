@@ -10,6 +10,8 @@ const configuration = new Configuration({
 
 const openai = new OpenAIApi(configuration);
 
+const openai_chat_completion_model = process.env.OPENAI_CHAT_COMPLETION_MODEL
+
 const entrenamientoTexto2Cypher = `Eres un asistente nutricional con la capacidad de generar consultas Cypher basadas en consultas Cypher de ejemplo.
 Las consultas de Cypher de ejemplo son:
 
@@ -17,34 +19,65 @@ Las consultas de Cypher de ejemplo son:
 CALL db.index.fulltext.queryNodes('nombresAlimentos', 'mango') YIELD node as a WITH a LIMIT 1
 CALL db.index.fulltext.queryNodes('nombresNutrientes', 'azúcar') YIELD node as n WITH a, n LIMIT 1
 MATCH (a)-[r1:TIENE]->(n)-[r2:SE_MIDE_POR]->(u:Unidad)
-RETURN {valor_nutricional: {alimento: a.nombre, valor: r1.valor, referencia: r1.cantidad_referencia,
-nutriente: n.nombre, unidad: u.nombre}} as resultado
+OPTIONAL MATCH (a)-[:MIDE_TAMANO_PORCION_POR]->(up:Unidad)
+RETURN {valor_nutricional: 
+    {alimento: {nombre: a.nombre, tamano_porcion_alimento: a.tam_porcion, unidad_porcion_alimento: up.nombre, densidad_alimento_g_ml: a.densidad}, 
+    nutriente: {valor: r1.valor,  referencia: r1.cantidad_referencia, nombre: n.nombre, unidad: u.nombre}}} as resultado
 
-#¿Cuál es el tamaño de porción del alimento galletas?; Dime a cuánto equivale una porción de las galletas.
-CALL db.index.fulltext.queryNodes('nombresAlimentos', 'galletas') YIELD node as a WITH a LIMIT 1
-MATCH (a)-[r:MIDE_TAMANO_PORCION_POR]->(u:Unidad)
-RETURN {porcion: {alimento: a.nombre, tamano_porcion: a.tam_porcion, unidad: u.nombre}} as resultado
+#¿Cuántas calorías hay en el alimento pepino?; ¿Cuántas calorías tiene un pepino?
+CALL db.index.fulltext.queryNodes('nombresAlimentos', 'pepino') YIELD node as a WITH a LIMIT 1
+CALL db.index.fulltext.queryNodes('nombresNutrientes', "kcal Energía") YIELD node as n WITH a, n LIMIT 1
+MATCH (a)-[r1:TIENE]->(n)-[r2:SE_MIDE_POR]->(u:Unidad)
+OPTIONAL MATCH (a)-[:MIDE_TAMANO_PORCION_POR]->(up:Unidad)
+RETURN {valor_calorico: 
+    {alimento: {nombre: a.nombre, tamano_porcion_alimento: a.tam_porcion, unidad_porcion_alimento: up.nombre, densidad_alimento_g_ml: a.densidad}, 
+    nutriente: {valor: r1.valor,  referencia: r1.cantidad_referencia, nombre: n.nombre, unidad: u.nombre}}} as resultado
 
-#¿Cuál es el tamaño de envase del alimento yogurt?; Dime cuánto tiene el envase de yogurt.
-CALL db.index.fulltext.queryNodes('nombresAlimentos', 'yogurt') YIELD node as a WITH a LIMIT 1
-MATCH (a)-[r:MIDE_TAMANO_ENVASE_POR]->(u:Unidad)
-RETURN {envase: {alimento: a.nombre, tamano_envase: a.tam_envase, unidad: u.nombre}} as resultado
+#¿Cuál alimento tiene más del nutriente fibra entre un nabo y un melloco?; ¿Qué tiene más fibra un nabo o un melloco?
+CALL {
+    CALL db.index.fulltext.queryNodes('nombresAlimentos', 'nabo') YIELD node as a1 WITH a1 LIMIT 1
+    CALL db.index.fulltext.queryNodes('nombresNutrientes', 'fibra') YIELD node as n1 WITH a1, n1 LIMIT 1
+    OPTIONAL MATCH (a1)-[r1:TIENE]->(n1)-[r2:SE_MIDE_POR]->(u1:Unidad)
+    OPTIONAL MATCH (a1)-[:MIDE_TAMANO_PORCION_POR]->(up1:Unidad)
+    RETURN a1, r1, u1, up1, n1
+}
+CALL {
+    CALL db.index.fulltext.queryNodes('nombresAlimentos', 'melloco') YIELD node as a2 WITH a2 LIMIT 1
+    CALL db.index.fulltext.queryNodes('nombresNutrientes', 'fibra') YIELD node as n2 WITH a2, n2 LIMIT 1
+    OPTIONAL MATCH (a2)-[r3:TIENE]->(n2)-[r4:SE_MIDE_POR]->(u2:Unidad)
+    OPTIONAL MATCH (a2)-[:MIDE_TAMANO_PORCION_POR]->(up2:Unidad)
+    RETURN a2, r3, u2, up2, n2
+}
+RETURN {comparacion_nutricional: 
+    {valor_nutricional1: 
+        {alimento: {nombre: a1.nombre, tamano_porcion_alimento: a1.tam_porcion, unidad_porcion_alimento: up1.nombre, densidad_alimento_g_ml: a1.densidad}, 
+        nutriente: {valor: r1.valor,  referencia: r1.cantidad_referencia, nombre: n1.nombre, unidad: u1.nombre}}, 
+    valor_nutricional2:  
+        {alimento: {nombre: a2.nombre, tamano_porcion_alimento: a2.tam_porcion, unidad_porcion_alimento: up2.nombre, densidad_alimento_g_ml: a2.densidad}, 
+        nutriente: {valor: r3.valor,  referencia: r3.cantidad_referencia, nombre: n2.nombre, unidad: u2.nombre}}}} as resultado
 
-#¿Cuál alimento tiene más del nutriente fibra entre un nabo y un melloco?; ¿Qué tiene más fibra entre un nabo o un melloco?
-CALL db.index.fulltext.queryNodes('nombresAlimentos', 'nabo') YIELD node as a1 WITH a1 LIMIT 1
-CALL db.index.fulltext.queryNodes('nombresAlimentos', 'melloco') YIELD node as a2 WITH a1, a2 LIMIT 1
-CALL db.index.fulltext.queryNodes('nombresNutrientes', 'fibra') YIELD node as n WITH a1, a2, n LIMIT 1
-MATCH (a1)-[r1:TIENE]->(n)-[r2:SE_MIDE_POR]->(u:Unidad)
-MATCH (a2)-[r3:TIENE]->(n)
-RETURN {comparacion_nutricional: {valor_nutricional1: {alimento: a1.nombre, valor: r1.valor, referencia: r1.cantidad_referencia},
-valor_nutricional2: {alimento: a2.nombre, valor: r3.valor, referencia: r3.cantidad_referencia},
-nutriente: n.nombre, unidad: u.nombre}} as resultado
-
-#¿Cuál es la lista de nutrientes del alimento chorizo?; Dime la tabla nutricional del chorizo.
-CALL db.index.fulltext.queryNodes('nombresAlimentos', 'chorizo') YIELD node as a WITH a LIMIT 1
-MATCH (a)-[r1:TIENE]->(n:Nutriente)-[r2:SE_MIDE_POR]->(u:Unidad)
-WITH a as a, collect({valor: r1.valor, referencia: r1.cantidad_referencia, nutriente: n.nombre, unidad: u.nombre}) as nutrientes
-RETURN {tabla_nutricional: {alimento: a.nombre, nutrientes: nutrientes}} as resultado
+#¿Cuál alimento tiene más calorías entre un salami y una manzana?; ¿Qué tiene más calorías un salami o una manzana?
+CALL {
+    CALL db.index.fulltext.queryNodes('nombresAlimentos', 'salami') YIELD node as a1 WITH a1 LIMIT 1
+    CALL db.index.fulltext.queryNodes('nombresNutrientes', "kcal Energía") YIELD node as n1 WITH a1, n1 LIMIT 1
+    OPTIONAL MATCH (a1)-[r1:TIENE]->(n1)-[r2:SE_MIDE_POR]->(u1:Unidad)
+    OPTIONAL MATCH (a1)-[:MIDE_TAMANO_PORCION_POR]->(up1:Unidad)
+    RETURN a1, r1, u1, up1, n1
+}
+CALL {
+    CALL db.index.fulltext.queryNodes('nombresAlimentos', 'manzana') YIELD node as a2 WITH a2 LIMIT 1
+    CALL db.index.fulltext.queryNodes('nombresNutrientes', "kcal Energía") YIELD node as n2 WITH a2, n2 LIMIT 1
+    OPTIONAL MATCH (a2)-[r3:TIENE]->(n2)-[r4:SE_MIDE_POR]->(u2:Unidad)
+    OPTIONAL MATCH (a2)-[:MIDE_TAMANO_PORCION_POR]->(up2:Unidad)
+    RETURN a2, r3, u2, up2, n2
+}
+RETURN {comparacion_calorica: 
+    {valor_nutricional1: 
+        {alimento: {nombre: a1.nombre, tamano_porcion_alimento: a1.tam_porcion, unidad_porcion_alimento: up1.nombre, densidad_alimento_g_ml: a1.densidad}, 
+        nutriente: {valor: r1.valor,  referencia: r1.cantidad_referencia, nombre: n1.nombre, unidad: u1.nombre}}, 
+    valor_nutricional2:  
+        {alimento: {nombre: a2.nombre, tamano_porcion_alimento: a2.tam_porcion, unidad_porcion_alimento: up2.nombre, densidad_alimento_g_ml: a2.densidad}, 
+        nutriente: {valor: r3.valor,  referencia: r3.cantidad_referencia, nombre: n2.nombre, unidad: u2.nombre}}}} as resultado    
 
 #¿Cuáles son los ingredientes del alimento GelaToni?; Dime los ingredientes de la GelaToni.
 CALL db.index.fulltext.queryNodes('nombresAlimentos', 'GelaToni') YIELD node as a WITH a LIMIT 1
@@ -52,8 +85,8 @@ MATCH (a)-[r:CONTIENE]->(i:Ingrediente)
 WITH a as a, collect({ingrediente: i.descripcion}) as ingredientes
 RETURN {lista_ingredientes: {alimento: a.nombre, ingredientes: ingredientes}} as resultado
 
-#Proporciona información general del alimento queso; Dame información del queso.
-CALL db.index.fulltext.queryNodes('nombresAlimentos', 'queso') YIELD node as a WITH a LIMIT 1
+#Proporciona información general del alimento chorizo; Dame información del chorizo.
+CALL db.index.fulltext.queryNodes('nombresAlimentos', 'chorizo') YIELD node as a WITH a LIMIT 1
 OPTIONAL MATCH (a)-[r1:INTEGRA]->(c:Categoria)
 OPTIONAL MATCH (a)-[r2:CORRESPONDE]->(m:Marca)
 OPTIONAL MATCH (a)-[r3:CORRESPONDE]->(m)-[r4:PERTENECE]->(e:Empresa)
@@ -64,36 +97,6 @@ envase: a.tam_envase + ue.nombre, porciones_por_envase: a.num_porciones_x_envase
 advertencia_azucar: a.advertencia_azucar, advertencia_sal: a.advertencia_sal, advertencia_grasa: a.advertencia_grasa}}
 as resultado
 
-#Sugiere alimentos de la categoría snacks que no contengan los ingredientes sal, papas o queso; Dime snacks sin sal, papas o queso.
-CALL db.index.fulltext.queryNodes('nombresCategorias', 'snacks') YIELD node as c WITH c LIMIT 1
-CALL db.index.fulltext.queryNodes('nombresIngredientes', 'sal OR papas OR queso') YIELD node as i
-MATCH (a:Alimento)-[r1:INTEGRA]->(c)
-WHERE NOT (a)-[:CONTIENE]->(i)
-WITH c, a as a LIMIT 5
-WITH c, collect({alimento: a.nombre}) as alimentos
-RETURN {recomendacion: {categoria: c.nombre, restricciones_proporcionadas: 'sal, papas, queso', sugerencias: alimentos}} as resultado
-
-#¿Qué categorías de alimentos produce la empresa Tonicorp?; Dime las categorías de productos de Tonicorp.
-CALL db.index.fulltext.queryNodes('nombresEmpresas', 'Tonicorp') YIELD node as e
-CALL {
-    WITH e
-    MATCH (c:Categoria)<-[:INTEGRA]-(:Alimento)-[:CORRESPONDE]->(:Marca)-[:PERTENECE]->(e)
-    RETURN DISTINCT c.nombre as categoria
-}
-WITH e, collect(categoria) as categorias
-RETURN {categorias_por_empresa: {empresa: e.nombre, categorias: categorias}} as resultado
-
-#¿Qué alimentos que sean jamones tiene la marca Plumrose?; Dime los jamones que oferta Plumrose.
-CALL db.index.fulltext.queryNodes('nombresMarcas', 'Plumrose') YIELD node as m
-CALL {
-    WITH m
-    CALL db.index.fulltext.queryNodes('nombresAlimentos', 'jamon') YIELD node as a
-    MATCH (a)-[:CORRESPONDE]->(m)
-    RETURN a.nombre as alimento
-}
-WITH m, collect(alimento) as alimentos
-RETURN {alimentos_por_marca: {marca: m.nombre, alimentos: alimentos, tipo_alimento: 'jamon'}} as resultado
-
 #¿Qué alimento puede reemplazar el alimento tigreton?; Dime un sustituto del tigreton.
 CALL db.index.fulltext.queryNodes('nombresAlimentos', 'tigreton') YIELD node as a WITH a LIMIT 1
 MATCH (a)-[r:DISTA]->(a2:Alimento)
@@ -102,8 +105,12 @@ WITH a, collect(a2.nombre) as sugerencias
 RETURN {alimento_a_sustituir: {nombre: a.nombre, alimentoID: a.alimentoID}, sugerencias: sugerencias} as resultado
 
 No respondas con ninguna explicación o cualquier otra información, excepto la consulta Cypher.
-Nunca te disculpes y genera estrictamente consultas Cypher basadas en los ejemplos proporcionados.
-No proporciones consultas Cypher que no se puedan deducir de los ejemplos.`
+Nunca te disculpes y genera estrictamente consultas Cypher basadas en los consultas Cypher de ejemplo proporcionadas.
+No proporciones consultas Cypher que no se puedan deducir de los ejemplos.
+Utiliza solo los tipos de relación y las propiedades proporcionadas en los ejemplos.
+No utilices ningún otro tipo de relación o propiedad que no se proporcione en los ejemplos.
+Si no puedes generar una consulta Cypher, explique el motivo al usuario.
+Nota: No incluyas explicaciones ni disculpas en tus respuestas.`
 
 const entrenamientoJSON2Texto = `Eres un asistente que ayuda a generar texto para formar respuestas agradables y comprensibles para los humanos.
 El mensaje más reciente contiene la información, y debes generar una respuesta legible por humanos basada en la información proporcionada.
@@ -147,7 +154,7 @@ const hacerPregunta = async (usuarioID, prompt) => {
     // Se usa el metodo chatCompletion para obtener la sentencia Cypher a partir del mensaje actual del usuario
     mensajesTexto2Cypher.push({ role: "user", content: prompt.pregunta.toString().trim() })
     const respuestaTexto2Cypher = await openai.createChatCompletion({
-        model: "gpt-3.5-turbo",
+        model: openai_chat_completion_model,
         messages: mensajesTexto2Cypher,
         temperature: 0,
         top_p: 1,
@@ -186,7 +193,7 @@ const hacerPregunta = async (usuarioID, prompt) => {
                 mensajesJSON2Texto.push({ role: "system", content: entrenamientoJSON2Texto })
                 mensajesJSON2Texto.push({ role: "user", content: informacion})
                 const respuestaJSON2Texto = await openai.createChatCompletion({
-                    model: "gpt-3.5-turbo",
+                    model: openai_chat_completion_model,
                     messages: mensajesJSON2Texto,
                     temperature: 0,
                     top_p: 1,
