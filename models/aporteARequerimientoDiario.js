@@ -25,7 +25,7 @@ const deficit = { // Deficit de calorias segun categoria IMC
 }
 
 const pal = { // Niveles de Actividad Fisica
-    'Sendetaria': 1.2,
+    'Sedentaria': 1.2,
     'Ligera': 1.375,
     'Moderada': 1.55,
     'Alta': 1.725,
