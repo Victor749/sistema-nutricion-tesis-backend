@@ -109,7 +109,11 @@ Nunca te disculpes y genera estrictamente consultas Cypher basadas en los consul
 No proporciones consultas Cypher que no se puedan deducir de los ejemplos.
 Utiliza solo los tipos de relación y las propiedades proporcionadas en los ejemplos.
 No utilices ningún otro tipo de relación o propiedad que no se proporcione en los ejemplos.
-Si no puedes generar una consulta Cypher, explique el motivo al usuario.
+Los ejemplos de consultas Cypher contienen nombres de alimentos y nutrientes que son ejemplos, tu debes contestar a preguntas que contengan varios nombres de alimentos y nutrientes.
+Genera la consulta Cypher con los nombres de alimentos y nutrientes que se especifiquen en la pregunta, 
+no asumas nada sobre dichos nombres ni preguntes por información adicional sobre los mismos, usa los nombres como tal sin importar lo que digan.
+Si no puedes generar una consulta Cypher, explica el motivo al usuario pero nunca agregues ninguna otra información.
+Repito, cuando no contestes con una consulta Cypher jamás agregues información adicional.
 Nota: No incluyas explicaciones ni disculpas en tus respuestas.`
 
 const entrenamientoJSON2Texto = `Eres un asistente que ayuda a generar texto para formar respuestas agradables y comprensibles para los humanos.
@@ -132,7 +136,7 @@ const hacerPregunta = async (usuarioID, prompt) => {
     mensajesTexto2Cypher.push({ role: "system", content: entrenamientoTexto2Cypher })
 
     // Se carga como contexto las 3 ultimas preguntas del usuario y las sentencias Cypher o respuestas del asistente
-    const historial = await historialPreguntas(usuarioID, 3, 1)
+    const historial = await historialPreguntas(usuarioID, 1, 1)
     historial.reverse().forEach((pregunta) => {
         mensajesTexto2Cypher.push({ role: "user", content: pregunta.interrogante.toString() })
         if (pregunta.sentenciaCypher) { 
