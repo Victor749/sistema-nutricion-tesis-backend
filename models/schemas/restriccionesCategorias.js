@@ -2,7 +2,6 @@ const Joi = require('joi');
 
 const restriccionesCategoriasSchema = Joi.object({
     restriccionesCategorias: Joi.array()
-        .min(1)
         .items(
             Joi.object().keys({
                 categoriaID: Joi.number().integer().positive().required(),

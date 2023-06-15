@@ -2,7 +2,6 @@ const Joi = require('joi');
 
 const restriccionesEtiquetasSchema = Joi.object({
     restriccionesEtiquetas: Joi.array()
-        .min(1)
         .items(
             Joi.object().keys({
                 texto: Joi.string().required(),
