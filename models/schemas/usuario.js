@@ -6,11 +6,9 @@ const usuarioSchema = Joi.object({
         .required(),
 
     nombre: Joi.string()
-        .regex(/^[\p{L}]+([\s][\p{L}]+)*$/u) // Solo letras del alfabeto de cualquier idioma y espacios entre letras
         .required(),
 
     apellido: Joi.string()
-        .regex(/^[\p{L}]+([\s][\p{L}]+)*$/u) // Solo letras del alfabeto de cualquier idioma y espacios entre letras
         .required(),
 
     email: Joi.string()
