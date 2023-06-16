@@ -4,7 +4,7 @@ var debug = require('debug')('sistema-nutricion-tesis-backend:usuarios');
 var Usuario = require('../models/usuario');
 
 /* GET lista de usuarios. */
-router.get('/', async function(req, res) {
+/*router.get('/', async function(req, res) {
   try {
     const resultado = await Usuario.encontrarTodos()
     res.status(200).json(resultado)
@@ -12,7 +12,7 @@ router.get('/', async function(req, res) {
     debug(error)
     res.status(500).send('Error en el servidor.')
   }
-});
+});*/
 
 /* GET usuario por ID. */
 router.get('/:usuarioID', async function(req, res) {
@@ -30,7 +30,7 @@ router.get('/:usuarioID', async function(req, res) {
 });
 
 /* GET usuario por email. */
-router.get('/email/:email', async function(req, res) {
+/*router.get('/email/:email', async function(req, res) {
   try {
     const resultado = await Usuario.encontrarPorEmail(req.params.email)
     if (resultado.codigo === 404)  {
@@ -42,7 +42,7 @@ router.get('/email/:email', async function(req, res) {
     debug(error)
     res.status(500).send('Error en el servidor.')
   }
-});
+});*/
 
 /* POST nuevo usuario. */
 router.post('/', async function (req, res) {
