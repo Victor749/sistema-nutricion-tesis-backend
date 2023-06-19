@@ -12,7 +12,6 @@ const usuarioSchema = Joi.object({
         .required(),
 
     email: Joi.string()
-        .email()
         .required(),
 
     sexo: Joi.string()
