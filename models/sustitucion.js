@@ -77,15 +77,24 @@ const solicitarSustitucion = async (usuarioID, alimentoID, flexible = 'false') =
                                         CALL db.index.fulltext.queryNodes('nombresIngredientes', etiquetas) YIELD node as ingrediente
                                         RETURN collect(ingrediente.descripcion) as ingredientes_restringidos
                                     }
-                                    MATCH (u:Usuario {usuarioID: $usuarioID}), (a:Alimento {alimentoID: toInteger($alimentoID)})-[r:DISTA]->(a2:Alimento)
+                                    CALL { 
+                                        WITH etiquetas
+                                        WITH etiquetas
+                                        WHERE etiquetas <> ""
+                                        CALL db.index.fulltext.queryNodes('nombresCategorias', etiquetas) YIELD node as categoria
+                                        RETURN collect(categoria.nombre) as categorias_restringidas
+                                    }
+                                    MATCH (u:Usuario {usuarioID: $usuarioID}), 
+                                    (c1:Categoria)<-[:INTEGRA]-(a:Alimento {alimentoID: toInteger($alimentoID)})-[r:DISTA]->(a2:Alimento)-[:INTEGRA]->(c2:Categoria)
                                     WHERE NOT a2.nombre IN alimentos_restringidos AND
+                                    NOT c2.nombre IN categorias_restringidas AND
                                     NOT (u)-` + restriccion + `->(a2) AND
-                                    NOT (u)-` + restriccion + `->(:Categoria)<-[:INTEGRA]-(a2)
-                                    WITH r, a2, ingredientes_restringidos
+                                    NOT (u)-` + restriccion + `->(c2)
+                                    WITH r, a2, (exists((c1)-[:ES_REEMPLAZABLE]->(c2))) as reemplazable, ingredientes_restringidos
                                     OPTIONAL MATCH p=(a2)-[:CONTIENE]->(i:Ingrediente WHERE i.descripcion IN ingredientes_restringidos)
-                                    WITH r, a2, size(collect(p)) as num_ingredientes_restringidos
+                                    WITH r, a2, reemplazable, size(collect(p)) as num_ingredientes_restringidos
                                     MATCH (a2) WHERE num_ingredientes_restringidos = 0
-                                    RETURN a2 ORDER BY r.distancia`
+                                    RETURN a2 ORDER BY reemplazable DESC, r.distancia ASC`
 
         const params_sugerencias = {alimentoID: alimentoID, usuarioID: usuarioID}
         const resultado_sugerencias = await transaccion.txc.run(sentencia_sugerencias, params_sugerencias)
