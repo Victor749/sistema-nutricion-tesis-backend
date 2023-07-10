@@ -109,7 +109,7 @@ const calcularAporteARequerimientoDiario = async (usuarioID, alimentoID) => {
         const alimento = resultado.records[0].get('a').properties
         const unidad_envase = resultado.records[0].get('ue') ? resultado.records[0].get('ue').properties.nombre : false
         const unidad_porcion = resultado.records[0].get('ue') ? resultado.records[0].get('up').properties.nombre : false
-        const referencia = resultado.records[0].get('r').properties.cantidad_referencia
+        const referencia = resultado.records[0].get('r') ? resultado.records[0].get('r').properties.cantidad_referencia : 'porción'
         const requerimientos = await obtenerRequerimientosNutricionales(usuario)
         const macros_usuario = requerimientos.macros
         const nutrientes = requerimientos.nutrientes
